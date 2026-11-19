@@ -1,0 +1,12 @@
+<?php
+$ym = str_replace('/', '-', en_num((string)($_GET['ym'] ?? jym(today()))));
+echo '<form class="filters"><input type="hidden" name="p" value="payroll"><label>ماه<input name="ym" value="' . h(fa_num($ym)) . '"></label><button class="btn">نمایش</button></form>';
+$emps = ui_opts("SELECT id, name FROM employees WHERE active=1 ORDER BY name");
+echo ui_card('محاسبهٔ حقوق', ui_form('payslip_calc', ['employee_id' => ['کارمند', 'select', 1, $emps], 'ym' => ['ماه', 'text', 1, [], fa_num($ym)], 'absent' => ['روزِ غیبت', 'float'], 'debt' => ['کسرِ بدهی از حقوق', 'money']], [], ['submit' => 'محاسبه / بازمحاسبه']) . '<p class="muted">پورسانتِ خالصِ ماه خودکار در فیش می‌آید. نرخ‌ها در پایین (هر سال در تنظیمات، نه در کد).</p>');
+$banks = ui_opts("SELECT id, title name FROM bank_accounts WHERE active=1");
+echo ui_card('فیش‌های ' . fa_num($ym), ui_table(['name' => 'کارمند', 'gross' => ['ناخالص', 'money'], 'deductions' => ['کسورات', 'money'], 'net' => ['خالص', 'money'], 'status' => ['وضعیت', fn($r) => ui_badge(['calc' => 'محاسبه‌شده', 'posted' => 'قطعی (سند)', 'paid' => 'پرداخت‌شده'][$r['status']] ?? $r['status'])],
+    'a' => ['', fn($r) => '<a class="btn sm" target="_blank" href="index.php?p=print_payslip&id=' . $r['id'] . '">فیش</a> ' . ($r['status'] === 'calc' ? ui_btn_api('قطعی و سند', 'payslip_post', ['id' => $r['id']], ['class' => 'sm', 'confirm' => 'سندِ حقوق صادر شود؟']) : '') . ($r['status'] === 'posted' && $banks ? ui_btn_api('پرداخت', 'payslip_pay', ['id' => $r['id'], 'bank_account_id' => array_key_first($banks)], ['class' => 'sm', 'confirm' => 'از حسابِ ' . reset($banks) . ' پرداخت شود؟']) : '')]],
+    rows("SELECT p.*, e.name FROM payslips p JOIN employees e ON e.id=p.employee_id WHERE p.ym=? ORDER BY e.name", [$ym])));
+$L = labor_rates(); $keys = ['housing' => 'حقِ مسکن', 'food' => 'بن و خواربار', 'marriage' => 'حقِ تأهل', 'child' => 'حقِ اولاد (هر فرزند)', 'ins_pct' => 'بیمهٔ سهمِ کارمند ٪', 'tax_exempt' => 'معافیتِ مالیاتِ ماهانه', 'tax_pct' => 'نرخِ مالیات ٪', 'over_factor' => 'ضریبِ اضافه‌کار'];
+$fs = []; $vs = []; foreach ($keys as $k => $t) { $fs["labor_rates[$k]"] = [$t, in_array($k, ['ins_pct', 'tax_pct', 'over_factor'], true) ? 'float' : 'money']; $vs["labor_rates[$k]"] = $L[$k]; }
+if (can('settings.edit')) echo ui_card('نرخ‌های قانونِ کار (امسال)', ui_form('settings_save', $fs, $vs));

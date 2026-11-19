@@ -1,0 +1,7 @@
+<?php $s = row("SELECT s.*, c.name cb, u.name un FROM shifts s JOIN cashboxes c ON c.id=s.cashbox_id JOIN users u ON u.id=s.user_id WHERE s.id=?", [req_int('id')]); if (!$s) exit('یافت نشد');
+$sum = $s['summary'] ? json_decode($s['summary'], true) : shift_expected((int)$s['id']); ?>
+<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>گزارشِ شیفت</title><link rel="stylesheet" href="assets/print.css"><style>@page{size:80mm auto;margin:3mm}</style></head><body><div class="rcpt"><h2>گزارشِ شیفتِ <?= fa_num($s['id']) ?></h2>
+<p><?= h($s['cb']) ?> — <?= h($s['un']) ?><br><?= jdate($s['opened_at'], true) ?> تا <?= jdate($s['closed_at'], true) ?></p><table>
+<tr><td>تعداد فروش</td><td><?= fa_num($sum['sales']) ?></td></tr><tr><td>جمعِ فروش</td><td><?= fa_money($sum['total']) ?></td></tr><?php foreach ($sum['by_method'] ?? [] as $m => $a): ?><tr><td><?= h(pay_methods()[$m] ?? $m) ?></td><td><?= fa_money($a) ?></td></tr><?php endforeach; ?>
+<tr><td>اولیه</td><td><?= fa_money($sum['opening']) ?></td></tr><tr><td>مورد انتظار</td><td><?= fa_money($sum['expected']) ?></td></tr><tr><td>شمرده</td><td><?= fa_money($sum['counted'] ?? 0) ?></td></tr><tr><td>مغایرت</td><td><?= h(fa_num($sum['diff_label'] ?? '')) ?></td></tr></table>
+<p>امضای صندوق‌دار: ............ &nbsp; امضای تحویل‌گیرنده: ............</p></div><script>setTimeout(function(){print()},300)</script></body></html>

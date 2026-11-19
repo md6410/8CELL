@@ -111,7 +111,7 @@ function pm_schema(): array {
     "CREATE TABLE IF NOT EXISTS sale_return_items (id INT AUTO_INCREMENT PRIMARY KEY, return_id INT NOT NULL, sale_item_id INT NOT NULL, qty INT NOT NULL, amount BIGINT NOT NULL, tax BIGINT NOT NULL DEFAULT 0, cost BIGINT NOT NULL DEFAULT 0, units MEDIUMTEXT NULL, KEY(return_id))$E",
     // ── فاکتورساز
     "CREATE TABLE IF NOT EXISTS docs (id INT AUTO_INCREMENT PRIMARY KEY, kind VARCHAR(10) NOT NULL, status VARCHAR(10) NOT NULL DEFAULT 'draft', number VARCHAR(40) NULL, seq INT NULL, counter_key VARCHAR(40) NULL,
-        d DATE NOT NULL, customer_id INT NULL, buyer MEDIUMTEXT NULL, seller MEDIUMTEXT NULL, lines MEDIUMTEXT NOT NULL, opts MEDIUMTEXT NULL, totals MEDIUMTEXT NULL, total BIGINT NOT NULL DEFAULT 0,
+        d DATE NOT NULL, customer_id INT NULL, buyer MEDIUMTEXT NULL, seller MEDIUMTEXT NULL, `lines` MEDIUMTEXT NOT NULL, opts MEDIUMTEXT NULL, totals MEDIUMTEXT NULL, total BIGINT NOT NULL DEFAULT 0,
         sale_id INT NULL, ref_doc_id INT NULL, subject VARCHAR(10) NULL, moadian VARCHAR(12) NULL, verify_token CHAR(24) NULL UNIQUE, revision INT NOT NULL DEFAULT 1,
         confirmed TINYINT NOT NULL DEFAULT 0, confirmed_at DATETIME NULL, created_by INT NULL, created_at DATETIME NOT NULL, issued_at DATETIME NULL, UNIQUE KEY(counter_key, seq), KEY(sale_id))$E",
     "CREATE TABLE IF NOT EXISTS doc_revisions (id INT AUTO_INCREMENT PRIMARY KEY, doc_id INT NOT NULL, revision INT NOT NULL, data MEDIUMTEXT NOT NULL, hash CHAR(64) NOT NULL, user_id INT NULL, at DATETIME NOT NULL, KEY(doc_id))$E",

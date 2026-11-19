@@ -1,0 +1,5 @@
+<?php
+$rs = rows("SELECT a.*, p.code pcode FROM accounts a LEFT JOIN accounts p ON p.id=a.parent_id ORDER BY a.code");
+foreach ($rs as &$r) $r['bal'] = $r['level'] === 'group' ? null : ledger_balance((int)$r['id']);
+echo ui_card('کدینگِ حساب‌ها', ui_table(['code' => ['کد', fn($r) => '<code>' . str_repeat('&nbsp;&nbsp;', max(0, strlen($r['code']) - 1)) . h($r['code']) . '</code>'], 'name' => 'نام', 'level' => 'سطح', 'nature' => ['ماهیت', fn($r) => $r['nature'] === 'D' ? 'بدهکار' : 'بستانکار'], 'bal' => ['مانده', fn($r) => $r['bal'] === null ? '' : ui_money($r['bal'])], 'system_key' => ['', fn($r) => $r['system_key'] ? ui_badge('سیستمی') : '']], $rs, ['filter' => 1]));
+if (can('ledger.post')) echo ui_card('سرفصلِ تازه', ui_form('account_save', ['parent_id' => ['والد', 'select', 1, ui_opts("SELECT id, CONCAT(code,' — ',name) name FROM accounts ORDER BY code")], 'code' => ['کد (با کدِ والد شروع شود)', 'text', 1], 'name' => ['نام', 'text', 1], 'level' => ['سطح', 'select', 1, ['moein' => 'معین', 'tafsili' => 'تفصیلی']]]));

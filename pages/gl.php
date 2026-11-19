@@ -1,0 +1,8 @@
+<?php
+$f = report_filters($_GET); $acc = req_int('account'); $pt = (string)($_GET['pt'] ?? ''); $pid = req_int('pid');
+echo '<form class="filters"><input type="hidden" name="p" value="gl"><label>سرفصل<select name="account"><option value="">—</option>' . implode('', array_map(fn($a) => '<option value="' . $a['id'] . '"' . ($acc == $a['id'] ? ' selected' : '') . '>' . h($a['code'] . ' — ' . $a['name']) . '</option>', rows("SELECT id, code, name FROM accounts ORDER BY code"))) . '</select></label>'
+    . '<label>یا شخص<select name="pt"><option value="">—</option>' . implode('', array_map(fn($k, $v) => '<option value="' . $k . '"' . ($pt === $k ? ' selected' : '') . '>' . h($v) . '</option>', array_keys(party_types()), party_types())) . '</select></label><label>شناسهٔ شخص<input name="pid" value="' . ($pid ?: '') . '"></label>'
+    . '<label>از<input class="jd" name="from" value="' . h(jdate($f['from'])) . '"></label><label>تا<input class="jd" name="to" value="' . h(jdate($f['to'])) . '"></label><button class="btn">نمایش</button></form>';
+$cols = ['d' => ['تاریخ', 'date'], 'number' => ['سند', 'num'], 'descr' => 'شرح', 'debit' => ['بدهکار', 'money'], 'credit' => ['بستانکار', 'money'], 'bal' => ['مانده', 'money']];
+if ($pt && $pid) { $s = party_statement($pt, $pid, $f['from'], $f['to']); echo ui_card('صورت‌حسابِ ' . (party_types()[$pt] ?? '') . ' ' . fa_num($pid) . ' — مانده ' . fa_money($s['balance']), ui_table($cols + ['acc' => 'سرفصل'], $s['rows'])); }
+elseif ($acc) { $g = general_ledger($acc, $f['from'], $f['to']); echo ui_card('دفترِ کلِ ' . $g['account']['code'] . ' ' . $g['account']['name'] . ' — نقل از قبل ' . fa_money($g['opening']) . ' — مانده ' . fa_money($g['closing']), ui_table($cols, $g['rows'])); }

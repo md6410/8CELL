@@ -1,0 +1,16 @@
+<?php
+$id = req_int('id'); $c = $id ? channel_get($id) : null;
+$f = ['name' => ['نام (در گزارش‌ها «فروشنده: …»)', 'text', 1], 'kind' => ['نوع', 'select', 1, channel_kinds()], 'fee_pct' => ['کارمزد ٪', 'float'], 'branch_id' => ['شعبه', 'select', 0, ui_opts("SELECT id, name FROM branches WHERE active=1")],
+    'warehouse_ids' => ['انبارهای تأمین', 'multi', 0, array_column(warehouse_list(), 'name', 'id')], 'price_rule' => ['قاعدهٔ قیمت', 'select', 1, ['retail' => 'قیمتِ نهایی', 'adjust' => 'قیمتِ نهایی ± درصد']], 'price_adj_pct' => ['درصدِ تغییرِ قیمت', 'float'],
+    'safety_stock' => ['حاشیهٔ امنِ موجودی', 'int'], 'all_products' => ['همهٔ کالاها عرضه شود', 'check'], 'inactive' => ['غیرفعال', 'check']];
+$v = $c ? $c + ['warehouse_ids' => explode(',', (string)$c['warehouse_ids']), 'inactive' => !$c['active']] : ['all_products' => 1, 'kind' => 'online'];
+echo ui_card($c ? 'کانالِ ' . $c['name'] : 'کانالِ تازه', ui_form('channel_save', $f, $v, ['hidden' => $c ? ['id' => $c['id']] : [], 'then' => 'go:index.php?p=channels&id={id}']));
+if ($c) {
+    echo ui_card('قراردادِ اتصال (API)', '<dl class="kv"><dt>شناسهٔ کانال</dt><dd><code>' . h($c['slug']) . '</code></dd><dt>کلید (X-Channel-Key)</dt><dd><code>' . h($c['key_id']) . '</code></dd><dt>رمزِ امضا</dt><dd>' . ui_btn_api('ساختنِ رمزِ تازه', 'channel_rotate', ['id' => $c['id']], ['class' => 'sm', 'confirm' => 'رمزِ قبلی از کار می‌افتد. ادامه؟', 'then' => 'none']) . '</dd>'
+        . '<dt>کاتالوگ</dt><dd><code>GET api.php?a=channel_catalog[&since=…]</code></dd><dt>سفارش</dt><dd><code>POST api.php?a=channel_order</code></dd><dt>وضعیت</dt><dd><code>GET api.php?a=channel_status&ext_id=…</code></dd></dl><p class="muted">امضا: HMAC-SHA256(secret, ts \\n METHOD \\n action \\n body) در X-Signature با X-Timestamp. راهنما: docs/channels-api.md</p>');
+    $bal = channel_balance($id);
+    echo ui_card('حسابِ کانال — مانده: ' . fa_money($bal) . ($bal > 0 ? ' (کانال بدهکار)' : ''), ui_form('channel_settle', ['amount' => ['مبلغِ تسویه', 'money', 1], 'bank_account_id' => ['واریز به حساب', 'select', 1, ui_opts("SELECT id, title name FROM bank_accounts WHERE active=1")], 'note' => ['یادداشت', 'text']], [], ['hidden' => ['id' => $id], 'submit' => 'ثبتِ تسویه'])
+        . ui_table(['at' => ['زمان', 'datetime'], 'kind' => 'نوع', 'amount' => ['مبلغ', 'money'], 'note' => 'شرح'], rows("SELECT * FROM channel_ledger WHERE channel_id=? ORDER BY id DESC LIMIT 100", [$id])));
+    $cat = channel_catalog($c); echo ui_card('پیش‌نمایشِ کاتالوگِ کانال', ui_table(['code' => ['کد', 'code'], 'name' => 'کالا', 'price' => ['قیمت', fn($r) => isset($r['price']) ? ui_money($r['price']) : fa_num(count($r['variants'])) . ' ترکیب'], 'stock' => ['موجودیِ عرضه', fn($r) => isset($r['stock']) ? fa_num($r['stock']) : '']], array_slice($cat['items'], 0, 100)));
+}
+echo ui_card('کانال‌ها', ui_table(['name' => 'نام', 'kind' => ['نوع', fn($r) => h(channel_kinds()[$r['kind']] ?? '')], 'module' => 'ماژول', 'fee_pct' => ['کارمزد ٪', 'num'], 'b' => ['مانده', fn($r) => ui_money(channel_balance((int)$r['id']))], 'active' => ['', fn($r) => $r['active'] ? '' : ui_badge('خاموش', 'err')]], rows("SELECT * FROM channels ORDER BY id"), ['href' => fn($r) => page_url('channels', ['id' => $r['id']]), 'empty' => 'هنوز کانالی نیست. ماژولِ فروشگاهِ آنلاین هنگامِ نصب خودش را این‌جا ثبت می‌کند.']));

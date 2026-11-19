@@ -41,5 +41,5 @@ function phold_is_release(array $s): bool { return $s['partner_mode'] === 'hold'
 function psales_rows(string $from, string $to): array {
     return rows("SELECT c.id, c.name, SUM(CASE WHEN COALESCE(s.partner_mode,'self') IN ('self','transfer') THEN s.total ELSE 0 END) self_total,
         SUM(CASE WHEN s.partner_mode='ship' THEN s.total ELSE 0 END) ship_total, SUM(CASE WHEN s.partner_mode='hold' THEN s.total ELSE 0 END) hold_total, COUNT(*) cnt
-        FROM sales s JOIN customers c ON c.id=s.customer_id WHERE c.is_partner=1 AND s.d BETWEEN ? AND ? GROUP BY c.id, c.name ORDER BY self_total+ship_total DESC", [$from, $to]);
+        FROM sales s JOIN customers c ON c.id=s.customer_id WHERE c.is_partner=1 AND s.d BETWEEN ? AND ? GROUP BY c.id, c.name ORDER BY SUM(s.total) DESC", [$from, $to]);
 }

@@ -87,7 +87,8 @@ function doc_save(array $in): int {
     $lines = [];
     foreach ((array)($in['lines'] ?? []) as $l) {
         if (trim((string)($l['title'] ?? '')) === '' && !(int)($l['product_id'] ?? 0)) continue;
-        $unit = (int)($l['unit_id'] ?? 0) ?: null; $price = to_int($l['price'] ?? 0);
+        $unit = (int)($l['unit_id'] ?? 0) ?: ((int)($l['product_id'] ?? 0) ? ((int)val("SELECT unit_id FROM products WHERE id=?", [(int)$l['product_id']]) ?: null) : null); $price = to_int($l['price'] ?? 0);
+        if (trim((string)($l['title'] ?? '')) === '' && (int)($l['product_id'] ?? 0)) $l['title'] = (string)val("SELECT name FROM products WHERE id=?", [(int)$l['product_id']]);
         if (!empty($l['usd'])) { $rate = to_int($l['rate'] ?? 0) ?: (int)(rate_today()['rate'] ?? 0); if (!$rate) throw new UserError('نرخِ دلار ثبت نشده است'); $price = fx_item_price(to_float($l['usd']), $rate, to_float($l['fx_pct'] ?? 0), (int)setting('fx_round', 0)); }
         $lines[] = ['product_id' => (int)($l['product_id'] ?? 0) ?: null, 'title' => trim((string)($l['title'] ?? '')), 'qty' => qty_in($l['qty'] ?? 1, $unit), 'unit_id' => $unit, 'price' => $price,
             'disc' => to_int($l['disc'] ?? 0), 'tax_exempt' => empty($l['tax_exempt']) ? 0 : 1, 'usd' => !empty($l['usd']) ? to_float($l['usd']) : null, 'rate' => !empty($l['usd']) ? ($rate ?? null) : null];

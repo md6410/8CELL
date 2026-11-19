@@ -1,0 +1,15 @@
+Options -Indexes
+DirectoryIndex index.php
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteRule ^(inc|data|parts|tests|tools|docs|modules/[^/]+/(?!assets/))(/|$) - [F,L]
+RewriteRule ^config\.(local|sample)\.php$ - [F,L]
+RewriteRule ^deploy-files\.txt$ - [F,L]
+RewriteRule \.pm\.json$ - [F,L]
+</IfModule>
+<FilesMatch "\.(json|md|txt|py|sql|log)$">
+  Require all denied
+</FilesMatch>
+<FilesMatch "^(index|api|v|install)\.php$">
+  Require all granted
+</FilesMatch>

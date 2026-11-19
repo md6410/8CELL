@@ -1,0 +1,6 @@
+<?php
+echo ui_card('ایستگاه‌های چاپ', ui_table(['name' => 'نام', 'online' => ['وضعیت', fn($r) => $r['online'] ? ui_badge('آنلاین', 'ok') : ui_badge('آفلاین', 'err')], 'last_seen' => ['آخرین تماس', 'datetime'], 'printers' => ['پرینترها', fn($r) => h(implode('، ', array_column($r['printers'], 'name')))], 'papers' => ['کاغذها', fn($r) => h(implode('، ', array_map(fn($p) => label_paper_name($p['w'], $p['h']), $r['papers'])))]], print_stations())
+    . ui_form('print_station_create', ['name' => ['نامِ ایستگاهِ تازه', 'text', 1]], [], ['submit' => 'ساختن و گرفتنِ توکن', 'then' => 'reload'])
+    . '<p class="muted">برنامهٔ ایستگاه: <code>tools/print-agent/agent.py</code> را روی رایانهٔ دفتر اجرا کنید (راهنما در docs/print-agent.md). ایستگاه خودش می‌پرسد؛ سایت هرگز تماس نمی‌گیرد.</p>');
+echo ui_card('صفِ چاپ', ui_table(['id' => ['#', 'num'], 'title' => 'عنوان', 'doc_type' => 'نوع', 'sn' => 'ایستگاه', 'paper' => ['کاغذ', fn($r) => h(label_paper_name($r['paper_w'], $r['paper_h']))], 'status' => ['وضعیت', fn($r) => ui_badge(print_job_status_label($r['status']), $r['status'] === 'done' ? 'ok' : ($r['status'] === 'error' ? 'err' : 'warn'))], 'error' => 'خطا', 'created_at' => ['زمان', 'datetime']],
+    rows("SELECT j.*, s.name sn FROM print_jobs j JOIN print_stations s ON s.id=j.station_id ORDER BY j.id DESC LIMIT 100")));

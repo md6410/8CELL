@@ -1,0 +1,7 @@
+<?php /* لینکِ کاتالوگ برای مشتری (بی‌ورود) — پیامک فقط لینک می‌برد */
+$p = row("SELECT * FROM products WHERE link_token=? AND active=1", [preg_replace('/[^a-f0-9]/', '', (string)($_GET['t'] ?? ''))]);
+?><!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title><?= h($p['name'] ?? 'کاتالوگ') ?></title><link rel="stylesheet" href="assets/app.css"></head><body class="pub"><main class="pubbox">
+<?php if (!$p): ?><h1>کالا یافت نشد</h1><?php else: $c = product_card((int)$p['id']); ?><h1><?= h($p['name']) ?></h1><?php if ($p['image']): ?><img src="<?= h($p['image']) ?>" style="max-width:100%;border-radius:10px"><?php endif; ?>
+<p style="font-size:1.4em"><b><?= fa_rial($c['price']) ?></b><?= $c['discount'] ? ' <s class="muted">' . fa_money($c['list']) . '</s>' : '' ?></p><p><?= $c['stock'] > 0 ? 'موجود' : 'ناموجود' ?><?= $p['warranty'] ? ' · گارانتی: ' . h($p['warranty']) : '' ?></p>
+<?php foreach (product_variants((int)$p['id']) as $v): $vc = product_card((int)$p['id'], (int)$v['id']); ?><p>• <?= h($v['title']) ?>: <?= fa_rial($vc['price']) ?> <?= $vc['stock'] > 0 ? '' : '(ناموجود)' ?></p><?php endforeach; ?>
+<p><?= nl2br(h($p['description'])) ?></p><pre style="white-space:pre-wrap;font:inherit"><?= h($p['specs']) ?></pre><p class="muted"><?= h(setting('biz_name')) ?> · <?= h(fa_num(setting('biz_phone', ''))) ?></p><?php endif; ?></main></body></html>

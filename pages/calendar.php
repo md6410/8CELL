@@ -1,0 +1,11 @@
+<?php
+$t = tehran_now(); $r = rate_today();
+echo '<div class="stats">' . ui_stat('امروز (تهران)', 0, false) . '</div>';
+echo '<script>document.querySelector(".stat b").textContent=' . json_encode(fa_num($t['j']) . ' · ' . $t['weekday'] . ' · ' . fa_num(substr($t['time'], 0, 5))) . ';</script>';
+echo '<div class="cols">' . ui_card('نرخِ دلار — ' . ($r ? fa_money($r['rate']) . ' ریال (' . ($r['source'] === 'auto' ? 'خودکار' : 'دستی') . '، ' . jdate($r['created_at'], true) . ')' : 'ثبت نشده'),
+    (can('settings.edit') ? ui_form('rate_manual', ['rate' => ['نرخِ دستی (ریال)', 'money', 1]], [], ['submit' => 'ثبتِ نرخ']) . ' ' . ui_btn_api('دریافتِ خودکار', 'rate_fetch', [], ['then' => 'reload'])
+    . ui_form('settings_save', ['rate_url' => ['نشانیِ سرویسِ نرخ (JSON)', 'text'], 'rate_path' => ['مسیرِ عدد در JSON (مثلاً data.usd.price)', 'text'], 'rate_unit' => ['واحدِ پاسخ', 'select', 1, ['toman' => 'تومان', 'rial' => 'ریال']]], ['rate_url' => setting('rate_url', ''), 'rate_path' => setting('rate_path', ''), 'rate_unit' => setting('rate_unit', 'toman')]) : '')
+    . ui_table(['d' => ['تاریخ', 'date'], 'rate' => ['نرخ', 'money'], 'source' => 'منبع'], rows("SELECT * FROM fx_rates ORDER BY id DESC LIMIT 15"))) ;
+echo ui_card('تعطیلات', '<p class="muted">جمعه و تعطیلاتِ ثابتِ خورشیدی خودکار است. تعطیلاتِ قمری را هر سال بچسبانید یا از سرویس بگیرید.</p>'
+    . (can('settings.edit') ? ui_form('holidays_import', ['text' => ['هر خط: ۱۴۰۵/۰۱/۰۱ عنوان', 'textarea', 1]], [], ['submit' => 'افزودن']) . ui_form('settings_save', ['holiday_url' => ['نشانیِ سرویسِ تعطیلات ({y} = سال)', 'text'], 'holiday_rule' => ['قاعدهٔ سررسیدِ روزِ تعطیل', 'select', 1, ['next' => 'روزِ کاریِ بعد', 'prev' => 'روزِ کاریِ قبل', 'warn' => 'فقط هشدار']], 'thursday_off' => ['پنجشنبه تعطیل', 'select', 1, ['0' => 'خیر', '1' => 'بله']]], ['holiday_url' => setting('holiday_url', ''), 'holiday_rule' => setting('holiday_rule', 'next'), 'thursday_off' => setting('thursday_off', '0')]) . ui_btn_api('دریافتِ تعطیلاتِ امسال', 'holidays_fetch', [], []) : '')
+    . ui_table(['d' => ['تاریخ', 'date'], 'title' => 'عنوان', 'source' => 'منبع'], rows("SELECT * FROM holidays WHERE d>=? ORDER BY d LIMIT 60", [date('Y-m-d', strtotime('-30 day'))]))) . '</div>';

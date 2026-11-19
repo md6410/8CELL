@@ -1,0 +1,10 @@
+<?php $u = current_user(); $pks = rows("SELECT * FROM passkeys WHERE user_id=? ORDER BY id DESC", [$u['id']]); ?>
+<div class="cols">
+<?= ui_card('تغییرِ رمز', ui_form('password_change', ['old' => ['رمزِ فعلی', 'password'], 'new' => ['رمزِ تازه', 'password', 1]], [], ['then' => 'none'])) ?>
+<?= ui_card('Passkey (ورود با اثرِ انگشت/چهره)', ui_table(['name' => 'دستگاه', 'created_at' => ['ساخته‌شده', 'datetime'], 'last_used' => ['آخرین استفاده', 'datetime'], 'x' => ['', fn($r) => ui_btn_api('حذف', 'pk_remove', ['id' => $r['id']], ['class' => 'sm danger', 'confirm' => 'حذف شود؟'])]], $pks, ['empty' => 'هنوز Passkey ندارید.'])
+ . '<div class="actions"><button class="btn primary" id="pkreg" type="button">ساختنِ Passkey برای همین دستگاه</button></div><p class="muted">دستگاه فقط وقتی «مورد اعتماد» است که هم کوکیِ همین دستگاه و هم امضای اثرانگشت باشد.</p>') ?>
+<?= ui_card('دسترسی‌های من', '<p>' . h(implode('، ', array_map(fn($c) => caps_flat()[$c] ?? $c, $u['caps']))) . '</p>') ?>
+</div>
+<script>document.addEventListener('DOMContentLoaded',function(){var C=window.Cell;function b2a(b){return btoa(String.fromCharCode.apply(null,new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}function a2b(s){s=s.replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';return Uint8Array.from(atob(s),function(c){return c.charCodeAt(0);});}
+document.getElementById('pkreg').onclick=function(){if(!window.PublicKeyCredential)return C.toast('این مرورگر Passkey ندارد','e');C.api('pk_reg_options',{}).then(function(o){o.challenge=a2b(o.challenge);o.user.id=a2b(o.user.id);o.excludeCredentials=o.excludeCredentials.map(function(c){return{type:'public-key',id:a2b(c.id)};});return navigator.credentials.create({publicKey:o});})
+.then(function(c){return C.api('pk_register',{clientDataJSON:b2a(c.response.clientDataJSON),attestationObject:b2a(c.response.attestationObject),name:prompt('نامِ این دستگاه:','گوشیِ من')||''});}).then(function(){C.toast('ثبت شد','s');setTimeout(function(){location.reload();},600);}).catch(function(e){C.toast(e.message,'e');});};});</script>
