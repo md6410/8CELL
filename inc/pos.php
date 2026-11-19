@@ -258,6 +258,8 @@ function sale_commit(array $in): int {
         throw $e;
     }
     do_action('sale_committed', $saleId);
+    if (($in['partner_mode'] ?? '') === 'hold') upd('sales', ['fulfil' => 'hold'], 'id=?', [$saleId]);
+    if (($in['partner_mode'] ?? '') === 'ship') { try { pship_sms_route($saleId); } catch (Throwable $e) { error_log('pship: ' . $e->getMessage()); } }
     try { sms_notify_sale($saleId); } catch (Throwable $e) { error_log('sms: ' . $e->getMessage()); }
     return $saleId;
 }

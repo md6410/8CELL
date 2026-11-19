@@ -50,7 +50,8 @@ function id_ok(string $kind, $v): bool { return $kind === 'legal' ? legal_id_ok(
 /** قواعدِ صورتحسابِ رسمی — همهٔ خطاها یک‌جا */
 function official_issues(array $doc): array {
     $E = []; $W = []; $b = $doc['buyer'] ?? []; $s = $doc['seller'] ?? [];
-    if (empty($s['national_id'])) $E[] = 'شناسهٔ ملیِ فروشنده در پروفایلِ کسب‌وکار ثبت نشده است';
+    $off = ($doc['kind'] ?? '') === 'official';
+    if (empty($s['national_id'])) { if ($off) $E[] = 'شناسهٔ ملیِ فروشنده در پروفایلِ کسب‌وکار ثبت نشده است'; else $W[] = 'شناسهٔ ملیِ فروشنده در پروفایلِ کسب‌وکار ثبت نشده است'; }
     elseif (!id_ok($s['kind'] ?? 'person', $s['national_id'])) $E[] = 'شناسهٔ ملیِ فروشنده معتبر نیست';
     if (empty($s['economic_code'])) $W[] = 'کدِ اقتصادیِ فروشنده خالی است';
     if (($doc['kind'] ?? '') === 'official') {

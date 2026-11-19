@@ -115,6 +115,20 @@ $T['X-WORDS'] = function () { return expect(num_words(1250000) === 'یک میل�
 $T['X-OTP'] = function () { settings_save(['sms_test_mode' => '1']); $r = otp_generate('09123334455', 'panel'); $bad = otp_check('09123334455', (string)$r['test_code'], 'staff'); $ok = otp_check('09123334455', (string)$r['test_code'], 'panel'); $again = otp_check('09123334455', (string)$r['test_code'], 'panel');
     return expect(!$bad && $ok && !$again, 'هدف/یک‌بارمصرف'); };
 
+$T['X-LOSS'] = function () { $p = mk_product('x', 1000, 0, 0, true); $lot = wh_lot_ensure($p, null, 1); $c = wh_units_add((int)$lot['id'], 2, ['unit_cost' => 400]); wh_stock_in($c[0]); wh_stock_in($c[1]);
+    $id = stock_loss(['kind' => 'loss', 'code' => $c[0], 'reason' => 'شکست در انبار']); $j = (int)val("SELECT total FROM journals WHERE source_type='stock_loss' AND source_id=?", [$id]);
+    return expect(stock_on_hand($p) === 1 && $j === 400 && wh_unit_by_code($c[0])['status'] === 'out', "on_hand=" . stock_on_hand($p) . " journal=$j"); };
+$T['X-WHOPS'] = function () { set_vat(0); $p = mk_product('دستگاه', 5000, 0, 0, true); $lot = wh_lot_ensure($p, null, 1); $c = wh_units_add((int)$lot['id'], 2, ['unit_cost' => 3000]); wh_stock_in($c[0]); wh_stock_in($c[1]);
+    $ch = mk_channel(); $r = channel_order_commit($ch, ['ext_id' => 'S1', 'items' => [['product_id' => $p, 'qty' => 1]]]); set_current_user(1);
+    $no = err(fn() => whops_order_close($r['sale_id'])); whops_order_scan_item($r['sale_id'], $c[1]); $dup = err(fn() => whops_order_scan_item($r['sale_id'], $c[1])); whops_order_close($r['sale_id']);
+    $s = row("SELECT * FROM sales WHERE id=?", [$r['sale_id']]); return expect(!$no['ok'] && !$dup['ok'] && $s['fulfil'] === 'shipped' && (int)$s['cost'] === 3000 && wh_unit_by_code($c[1])['status'] === 'out' && stock_on_hand($p) === 1, $s['fulfil'] . ' cost=' . $s['cost']); };
+$T['X-GUARD'] = function () { $p = mk_product('x', 100000); q("UPDATE products SET price_guard_pct=30 WHERE id=?", [$p]); product_price_set($p, 110000); $a = (int)val("SELECT active FROM products WHERE id=?", [$p]); product_price_set($p, 200000); $b = (int)val("SELECT active FROM products WHERE id=?", [$p]); return expect($a === 1 && $b === 0, "$a/$b"); };
+$T['X-DUP'] = function () { $p = mk_product('ژله', 1000); variant_add($p, 'توت‌فرنگی'); variant_add($p, 'پرتقال'); $d = product_duplicate($p, 'ژلهٔ ویژه'); $a = product_get($p); $b = product_get($d);
+    return expect($a['base_code'] !== $b['base_code'] && count(product_variants($d)) === 2 && strlen($b['base_code']) === 20, $b['base_code']); };
+$T['X-ACCSHARE'] = function () { ins('acc_partners', ['name' => 'الف', 'coef' => 2]); ins('acc_partners', ['name' => 'ب', 'coef' => 1]); $ym = str_replace('/', '-', jym(today())); ins('acc_expenses', ['title' => 'اجاره', 'amount' => 1000, 'monthly' => 1, 'from_ym' => $ym, 'created_at' => now()]);
+    $doc = ins('docs', ['kind' => 'invoice', 'status' => 'issued', 'd' => today(), 'lines' => '[]', 'buyer' => '{"name":"x"}', 'total' => 2001, 'confirmed' => 1, 'created_at' => now()]); doc_pay_add($doc, 2001, today());
+    $c = acc_calc(); $e = array_column($c['partners'], 'earned', 'name'); return expect($e['الف'] === 668 && $e['ب'] === 333, json_encode($e, JSON_UNESCAPED_UNICODE)); };
+
 $res = []; $pass = 0; $fail = 0; $skip = 0;
 foreach ($T as $ref => $fn) {
     try { reset_db(); [$st, $got] = $fn(); } catch (Throwable $e) { $st = 'fail'; $got = get_class($e) . ': ' . $e->getMessage() . ' @' . basename($e->getFile()) . ':' . $e->getLine(); }

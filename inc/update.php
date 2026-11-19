@@ -26,7 +26,7 @@ function df_upd_latest(): array {
     return $s;
 }
 function df_upd_remote_version(string $sha): string {
-    $r = http_req('GET', 'https://api.github.com/repos/' . df_upd_repo() . '/contents/inc/version.php?ref=' . $sha, null, df_upd_headers() + ['Accept' => 'application/vnd.github.raw'], 10);
+    $r = http_req('GET', 'https://api.github.com/repos/' . df_upd_repo() . '/contents/inc/version.php?ref=' . $sha, null, array_merge(df_upd_headers(), ['Accept' => 'application/vnd.github.raw']), 10);
     return ($r['ok'] && preg_match("/APP_VERSION',\s*'([^']+)'/", $r['body'], $m)) ? $m[1] : '';
 }
 function df_upd_safe_rel(string $p): ?string {
