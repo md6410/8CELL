@@ -192,7 +192,7 @@ function doc_render_html(array $d): string {
     $verify = $d['verify_token'] ? app_url('v.php?t=' . $d['verify_token']) : '';
     foreach ($pages as $pi => $rows) {
         $o .= '<section class="a4"><header class="dh"><div>' . (setting('biz_logo') ? '<img src="' . h(setting('biz_logo')) . '" class="logo">' : '') . '<b>' . h($s['name'] ?? '') . '</b></div><h1>' . h($title) . '</h1><div class="meta">'
-            . 'شماره: <b>' . h(fa_num($d['number'] ?: peek_seq($d['kind'], $d['d']) . '؟')) . '</b><br>تاریخ: ' . jdate($d['d']) . '<br>صفحهٔ ' . fa_num($pi + 1) . ' از ' . fa_num($np) . '</div></header>';
+            . 'شماره: <b dir="ltr">' . h(fa_num($d['number'] ?: peek_seq($d['kind'], $d['d']) . '؟')) . '</b><br>تاریخ: ' . jdate($d['d']) . '<br>صفحهٔ ' . fa_num($pi + 1) . ' از ' . fa_num($np) . '</div></header>';
         if ($pi == 0) $o .= '<table class="parties"><tr><th>فروشنده</th><td>' . h($s['name'] ?? '') . ' — شناسهٔ ملی: ' . h(fa_num($s['national_id'] ?? '')) . ' — کدِ اقتصادی: ' . h(fa_num($s['economic_code'] ?? '')) . '<br>' . h($s['address'] ?? '') . ' ' . h(fa_num($s['phone'] ?? '')) . '</td></tr>'
             . '<tr><th>خریدار</th><td>' . h($b['name'] ?? 'مشتریِ گذری') . (!empty($b['national_id']) ? ' — شناسه: ' . h(fa_num($b['national_id'])) : '') . (!empty($b['postal_code']) ? ' — کدِ پستی: ' . h(fa_num($b['postal_code'])) : '') . '<br>' . h($b['address'] ?? '') . ' ' . h(fa_num($b['mobile'] ?? '')) . '</td></tr></table>';
         $o .= '<table class="lines"><thead><tr><th>#</th><th>شرح</th><th>تعداد</th><th>فی</th><th>تخفیف</th><th>مالیات</th><th>مبلغ</th></tr></thead><tbody>';
@@ -214,6 +214,6 @@ function doc_render_html(array $d): string {
     return $o;
 }
 function doc_print_page(array $d): string {
-    return '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>' . h(($d['number'] ?? '') ?: 'سند') . '</title><link rel="stylesheet" href="assets/print.css"></head><body>' . doc_render_html($d)
+    return '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><title>' . h(($d['number'] ?? '') ?: 'سند') . '</title><link rel="stylesheet" href="assets/print.css"></head><body class="pp">' . doc_render_html($d)
         . '<script src="assets/vendor/qrcode.js"></script><script>document.querySelectorAll(".qr").forEach(function(e){var q=qrcode(0,"M");q.addData(e.getAttribute("data-qr"));q.make();e.innerHTML=q.createSvgTag({margin:0,scalable:true});});if(location.search.indexOf("autoprint=1")>0)setTimeout(function(){print()},300);</script></body></html>';
 }

@@ -1,0 +1,1 @@
+<?php echo ui_card('ماژولِ نمونه', '<p>این صفحه را ماژولِ <code>hello</code> با قلابِ <code>pages</code> اضافه کرده است. کدِ آن در <code>modules/hello/main.php</code> الگوی ساختِ ماژولِ فروشگاهِ آنلاین است.</p>' . ui_btn_api('آزمونِ API ماژول', 'hello_ping', [], ['then' => 'none']));

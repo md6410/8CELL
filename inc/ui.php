@@ -8,7 +8,7 @@ function ui_badge(string $t, string $k = ''): string { return '<span class="badg
 /** فیلدِ فرم: [label, type, required, options] */
 function ui_field(string $name, array $f, $value = null): string {
     [$label, $type] = [$f[0], $f[1] ?? 'text']; $req = !empty($f[2]) ? ' required' : '';
-    $opts = $f[3] ?? []; if (is_callable($opts)) $opts = $opts();
+    $opts = $f[3] ?? []; if ($opts instanceof Closure) $opts = $opts();
     $id = 'f_' . preg_replace('/[^a-z0-9_]/i', '_', $name);
     $v = $value;
     switch ($type) {
@@ -47,7 +47,7 @@ function ui_table(array $cols, array $rows, array $o = []): string {
         $s .= '<tr' . (!empty($o['href']) ? ' class="link" data-href="' . h(($o['href'])($r)) . '"' : '') . '>';
         foreach ($cols as $k => $c) {
             $t = is_array($c) ? ($c[1] ?? '') : ''; $v = $r[$k] ?? '';
-            if (is_callable($t)) $cell = $t($r);
+            if ($t instanceof Closure) $cell = $t($r);
             elseif ($t === 'money') $cell = ui_money((int)$v);
             elseif ($t === 'date') $cell = jdate((string)$v);
             elseif ($t === 'datetime') $cell = jdate((string)$v, true);

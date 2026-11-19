@@ -1,5 +1,5 @@
 @font-face{font-family:V;src:url(fonts/Vazirmatn.woff2) format("woff2")}
-@page{size:A4;margin:10mm}body{font:10.5pt/1.6 V,Tahoma,sans-serif;margin:0;color:#000}
+@page{size:A4;margin:10mm}body.pp{font:10.5pt/1.6 V,Tahoma,sans-serif;margin:0;color:#000}.a4,.rcpt{font-family:V,Vazirmatn,Tahoma,sans-serif;color:#000}
 .a4{width:190mm;min-height:270mm;margin:0 auto 6mm;page-break-after:always;break-after:page;position:relative}.a4:last-child{page-break-after:auto}
 .dh{display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #000;padding-bottom:3mm;margin-bottom:3mm}.dh h1{font-size:15pt;margin:0}.logo{height:14mm;vertical-align:middle;margin-left:3mm}.meta{font-size:9.5pt}
 table{width:100%;border-collapse:collapse}.parties th,.lines th,.lines td,.parties td,.tot th,.tot td{border:1px solid #444;padding:1.5mm 2mm}.parties th{width:22mm;background:#eee}
@@ -7,4 +7,4 @@ table{width:100%;border-collapse:collapse}.parties th,.lines th,.lines td,.parti
 .tot{width:90mm;margin:3mm 0 0 auto}.tot th{text-align:right;background:#f4f4f4;font-weight:500}.tot td{text-align:left;direction:ltr}.tot .g th,.tot .g td{font-weight:800;font-size:11.5pt}
 .words{margin:2mm 0}.df{display:flex;justify-content:space-between;align-items:flex-end;margin-top:10mm;text-align:center}.stamp{height:22mm}.qrbox{width:26mm}.qrbox .qr{width:24mm;height:24mm}.qr svg{width:100%;height:100%}.foot{font-size:8.5pt;color:#333;border-top:1px solid #999;margin-top:6mm;padding-top:2mm}
 .rcpt{width:72mm;margin:0 auto;font-size:9.5pt}.rcpt table td{padding:1mm 0;border-bottom:1px dashed #999}.rcpt h2{text-align:center;font-size:12pt;margin:2mm 0}
-@media screen{body{background:#ddd;padding:6mm}.a4,.rcpt{background:#fff;padding:8mm;box-shadow:0 0 6px #0003}}
+@media screen{body.pp{background:#ddd;padding:6mm}.a4,.rcpt{background:#fff;padding:8mm;box-shadow:0 0 6px #0003}}
