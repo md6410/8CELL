@@ -14,7 +14,7 @@ $p = preg_replace('/[^a-z_]/', '', (string)($_GET['p'] ?? ''));
 // صفحه‌های عمومی
 if ($p === 'catalog') { require ROOT . '/pages/catalog.php'; exit; }
 if ($p === 'captcha') { df_cap_image(); exit; }
-if ($p === 'cron') { if (hash_equals((string)setting('cron_key', ''), (string)($_GET['k'] ?? '')) && setting('cron_key', '') !== '') { $sm = 0; try { $sm = sms_retry_due(); } catch (Throwable $e) { error_log($e->getMessage()); } echo json_encode(df_upd_run(false, true, 'cron') + ['sms_retried' => $sm], JSON_UNESCAPED_UNICODE); } else http_response_code(403); exit; }
+if ($p === 'cron') { if (hash_equals((string)setting('cron_key', ''), (string)($_GET['k'] ?? '')) && setting('cron_key', '') !== '') { $sm = 0; $nt = []; try { $sm = sms_retry_due(); } catch (Throwable $e) { error_log($e->getMessage()); } try { $nt = notify_run(); } catch (Throwable $e) { error_log($e->getMessage()); } echo json_encode(df_upd_run(false, true, 'cron') + ['sms_retried' => $sm, 'notify' => $nt], JSON_UNESCAPED_UNICODE); } else http_response_code(403); exit; }
 // صفحه‌های چاپ (با نشست یا توکنِ کارِ چاپ برای ایستگاه)
 if (in_array($p, ['print_doc', 'print_label', 'print_receipt', 'print_shift', 'print_payslip'], true)) {
     $job = print_job_grant();

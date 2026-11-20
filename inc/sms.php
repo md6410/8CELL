@@ -14,6 +14,13 @@ function sms_tpl_catalog(): array {
         'partner_ship' => ['ارسال برای مشتریِ همکار', ['NAME', 'NUMBER', 'PARTNER'], ['NUMBER']],
         'payreq_ok' => ['تأییدِ واریزِ همکار', ['NAME', 'NUMBER', 'AMOUNT'], ['NUMBER', 'AMOUNT']],
         'payreq_no' => ['ردِ فیشِ واریزِ همکار', ['NAME', 'NUMBER', 'NOTE'], ['NUMBER']],
+        'promise_due' => ['هشدارِ موعدِ قولِ پرداخت (به مدیر)', ['NAME', 'AMOUNT', 'DATE'], ['AMOUNT', 'DATE']],
+        'promise_remind' => ['یادآوریِ موعدِ پرداخت (به مشتری/همکار)', ['NAME', 'AMOUNT', 'DATE'], ['AMOUNT', 'DATE']],
+        'cheque_due' => ['هشدارِ سررسید/برگشتِ چک (به مدیر)', ['NAME', 'NUMBER', 'AMOUNT', 'DATE'], ['NUMBER', 'AMOUNT']],
+        'stock_low' => ['خلاصهٔ کالاهای رو به اتمام (به مدیر)', ['COUNT'], ['COUNT']],
+        'addr_link' => ['لینکِ ثبتِ نشانی (متنِ قالب: …/v.php?a=#TOKEN#)', ['NAME', 'TOKEN', 'LINK'], ['TOKEN']],
+        'ship_track' => ['رهگیریِ ارسال', ['NAME', 'CARRIER', 'CODE'], ['CODE']],
+        'partner_list' => ['لینکِ فهرستِ قیمتِ همکار', ['NAME', 'LINK'], ['LINK']],
         'stock_loss_confirm' => ['تأییدِ ثبتِ ضرر', ['CODE'], ['CODE']],
     ]);
 }

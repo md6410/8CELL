@@ -24,6 +24,7 @@ inc/calendar.php
 inc/captcha.php
 inc/coding.php
 inc/channels.php
+inc/credit.php
 inc/customers.php
 inc/db.php
 inc/ext.php
@@ -35,6 +36,7 @@ inc/jalali.php
 inc/labels.php
 inc/ledger.php
 inc/moadian.php
+inc/notify.php
 inc/otp.php
 inc/partner.php
 inc/payreq.php
@@ -48,6 +50,7 @@ inc/routes.php
 inc/scan.php
 inc/schema.php
 inc/settings.php
+inc/ship.php
 inc/sms.php
 inc/staff.php
 inc/ui.php
@@ -68,6 +71,8 @@ pages/banks.php
 pages/calendar.php
 pages/catalog.php
 pages/channels.php
+pages/cheques.php
+pages/credit.php
 pages/crud.php
 pages/customer.php
 pages/customers.php
@@ -84,6 +89,8 @@ pages/ledger.php
 pages/login.php
 pages/losses.php
 pages/me.php
+pages/notify.php
+pages/partner_prices.php
 pages/partners.php
 pages/payreqs.php
 pages/payroll.php
@@ -104,10 +111,12 @@ pages/sale.php
 pages/sales.php
 pages/settings.php
 pages/shifts.php
+pages/shipments.php
 pages/sms.php
 pages/staff.php
 pages/stock.php
 pages/suppliers.php
+pages/trends.php
 pages/update.php
 pages/users.php
 pages/whops.php

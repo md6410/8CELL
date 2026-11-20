@@ -107,3 +107,6 @@ input[type=checkbox]{width:auto}.ck{display:inline-flex;gap:6px;align-items:cent
 .scan-tick--bad .scan-tick__c {
   background: #C0392B; box-shadow: 0 0 0 8px rgba(192, 57, 43, .3), 0 10px 30px rgba(0, 0, 0, .35);
 }
+.capgrid fieldset{border:1px solid #e5e7eb;border-radius:8px;margin:6px 0;padding:6px 10px;display:flex;flex-wrap:wrap;gap:4px 14px}.capgrid legend{font-weight:700;padding:0 6px}.capgrid .ck{min-width:180px}
+.trend{display:flex;gap:6px;align-items:flex-end;height:180px;padding:8px 0;border-bottom:1px solid #e5e7eb}.tcol{flex:1;display:flex;flex-direction:column;align-items:center;height:100%}.tcol .tb{flex:1;width:100%;display:flex;gap:2px;align-items:flex-end;justify-content:center}.tcol i{display:block;width:40%;border-radius:3px 3px 0 0;min-height:1px}.tcol small{font-size:11px;color:#6b7280;margin-top:4px}
+i.rev,.lg.rev{background:var(--pri,#0f766e)}i.pro,.lg.pro{background:#f59e0b}i.pro.neg{background:#dc2626}.lg{display:inline-block;width:10px;height:10px;border-radius:2px;margin:0 6px 0 2px;vertical-align:middle}

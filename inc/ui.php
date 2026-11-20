@@ -12,6 +12,7 @@ function ui_field(string $name, array $f, $value = null): string {
     $id = 'f_' . preg_replace('/[^a-z0-9_]/i', '_', $name);
     $v = $value;
     switch ($type) {
+        case 'cpick': return '<label class="field"><span>' . h($label) . ($req ? ' *' : '') . '</span><span style="position:relative;display:block"><input class="cpick" placeholder="نام یا موبایل…" autocomplete="off" value="' . h(is_array($v) ? ($v['name'] ?? '') : '') . '"></span><input type="hidden" name="' . h($name) . '" value="' . h(is_array($v) ? ($v['id'] ?? '') : (string)$v) . '"></label>';
         case 'hidden': return '<input type="hidden" name="' . h($name) . '" value="' . h($v) . '">';
         case 'textarea': $in = '<textarea id="' . $id . '" name="' . h($name) . '" rows="3"' . $req . '>' . h($v) . '</textarea>'; break;
         case 'select': $in = '<select id="' . $id . '" name="' . h($name) . '"' . $req . '>' . (!$req ? '<option value="">—</option>' : ''); foreach ($opts as $k => $t) $in .= '<option value="' . h($k) . '"' . ((string)$k === (string)$v ? ' selected' : '') . '>' . h($t) . '</option>'; $in .= '</select>'; break;

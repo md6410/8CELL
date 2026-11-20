@@ -64,4 +64,33 @@ if (isset($_GET['s'])) {
         . '<form method="post" class="form" autocomplete="off"><input type="hidden" name="csrf" value="' . $csrf . '"><label class="field"><span>رمز</span><input name="pin" inputmode="numeric" maxlength="40" autofocus required></label><div class="actions"><button class="btn primary">نمایش</button></div></form>' . $pinJs);
     echo doc_print_page($r['doc'], ($r['doc']['vf_html'] ?? '') ?: doc_render_html($r['doc'])); exit;
 }
+// ── لینکِ ثبتِ نشانی (روالِ Weby addr-link): بی‌ورود، با توکنِ امضاشدهٔ ۷ روزه
+if (isset($_GET['a'])) {
+    $L = addr_link_parse((string)$_GET['a']);
+    if (!$L) vmsg('این لینک معتبر نیست.', 404, 'ثبتِ نشانی'); if (!empty($L['expired'])) vmsg('مهلتِ این لینک تمام شده است؛ از فروشگاه لینکِ تازه بخواهید.', 410, 'ثبتِ نشانی');
+    $c = $L['customer']; $err = ''; $done = false; $in = $_POST;
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') { if (!vcsrf_ok()) $err = 'مهلتِ صفحه تمام شده بود؛ دوباره بفرستید.'; else { try { address_save((int)$c['id'], $in, 'link', $L['postal']); $done = true; } catch (UserError $e) { $err = $e->getMessage(); } } }
+    if ($done) vpage('ثبتِ نشانی', '<h1>✅ نشانی ثبت شد</h1><p>' . h($c['name']) . ' عزیز، نشانیِ شما در ' . h((string)setting('biz_name', '')) . ' ذخیره شد. سپاس.</p>');
+    $v = fn($k) => h((string)($in[$k] ?? ''));
+    $b = '<h1>ثبتِ نشانی</h1><p>' . h($c['name']) . ' عزیز، نشانیِ تحویل را بنویسید' . ($L['postal'] ? ' (نشانیِ کامل و کدِ پستی لازم است)' : '') . '. با دکمهٔ «موقعیتِ من» محلِ دقیق را هم بفرستید تا پیک راحت پیدا کند.</p>' . ($err ? '<p class="err">' . h($err) . '</p>' : '')
+        . '<form method="post" class="form" autocomplete="on"><input type="hidden" name="csrf" value="' . $csrf . '"><input type="hidden" name="lat" id="lat" value="' . $v('lat') . '"><input type="hidden" name="lng" id="lng" value="' . $v('lng') . '">'
+        . '<label class="field"><span>گیرنده</span><input name="receiver_name" value="' . ($v('receiver_name') ?: h($c['name'])) . '"></label><label class="field"><span>موبایلِ گیرنده</span><input name="receiver_mobile" dir="ltr" inputmode="tel" value="' . ($v('receiver_mobile') ?: h((string)$c['mobile'])) . '"></label>'
+        . '<label class="field"><span>استان</span><input name="province" value="' . $v('province') . '"></label><label class="field"><span>شهر *</span><input name="city" value="' . $v('city') . '"' . ($L['postal'] ? ' required' : '') . '></label>'
+        . '<label class="field"><span>نشانی *</span><textarea name="address" rows="3"' . ($L['postal'] ? ' required' : '') . '>' . $v('address') . '</textarea></label><label class="field"><span>پلاک</span><input name="plaque" value="' . $v('plaque') . '"></label><label class="field"><span>واحد</span><input name="unit" value="' . $v('unit') . '"></label>'
+        . '<label class="field"><span>کدِ پستی' . ($L['postal'] ? ' *' : '') . '</span><input name="postal_code" dir="ltr" inputmode="numeric" maxlength="12" value="' . $v('postal_code') . '"' . ($L['postal'] ? ' required' : '') . '></label>'
+        . '<p><button type="button" class="btn" id="geo">📍 موقعیتِ من</button> <span id="geos" class="muted">' . ($v('lat') ? 'موقعیت گرفته شد' : '') . '</span></p><div class="actions"><button class="btn primary">ثبتِ نشانی</button></div></form>'
+        . '<script>document.getElementById("geo").onclick=function(){var s=document.getElementById("geos");if(!navigator.geolocation){s.textContent="مرورگر موقعیت نمی‌دهد";return}s.textContent="در حالِ گرفتن…";navigator.geolocation.getCurrentPosition(function(p){document.getElementById("lat").value=p.coords.latitude;document.getElementById("lng").value=p.coords.longitude;s.textContent="✅ موقعیت گرفته شد (دقت حدود "+Math.round(p.coords.accuracy)+" متر)"},function(){s.textContent="اجازهٔ موقعیت داده نشد؛ نشانی را بنویسید"},{enableHighAccuracy:true,timeout:15000})};</script>';
+    vpage('ثبتِ نشانی', $b);
+}
+// ── فهرستِ قیمتِ همکار (لینکِ امضاشدهٔ ۳۰ روزه)
+if (isset($_GET['pl'])) {
+    $cid = plist_parse((string)$_GET['pl']); $c = $cid ? row("SELECT * FROM customers WHERE id=? AND is_partner=1", [$cid]) : null;
+    if (!$c) vmsg('این لینک معتبر نیست یا مهلتش تمام شده است.', 404, 'فهرستِ قیمت');
+    $pl = partner_price_list($cid); $no = partner_list_doc($cid, count($pl)); $g = (string)val("SELECT name FROM grades WHERE id=?", [(int)$c['partner_grade_id']]);
+    $rows = ''; foreach ($pl as $r) $rows .= '<tr><td>' . h($r['name']) . '</td><td class="num">' . fa_money($r['retail']) . '</td><td class="num"><b>' . fa_money($r['price_one']) . '</b></td><td class="num">' . ($r['qty_max'] > 1 && $r['price_max'] < $r['price_one'] ? fa_money($r['price_max']) . ' <small>(از ' . fa_num((string)$r['qty_max']) . ' عدد)</small>' : '—') . '</td></tr>';
+    echo '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>فهرستِ قیمتِ همکاری</title><link rel="stylesheet" href="assets/app.css"></head><body class="pub"><main class="pubbox" style="max-width:900px">'
+        . '<h1>فهرستِ قیمتِ همکاری — ' . h((string)setting('biz_name', '')) . '</h1><p>' . h($c['name']) . ($g ? ' · گریدِ ' . h($g) : '') . ' · شمارهٔ فهرست <b dir="ltr">' . h(fa_num($no)) . '</b> · ' . jdate(today()) . ' · <button onclick="print()" class="btn sm">چاپ</button></p>'
+        . '<p class="muted">قیمت‌ها به ریال و روزِ صدور معتبرند؛ تخفیفِ همکاری با تعدادِ هر کالا تا ستونِ آخر بیشتر می‌شود.</p><table class="tbl"><tr><th>کالا</th><th>قیمتِ مصرف‌کننده</th><th>قیمتِ همکار</th><th>با تعدادِ بیشتر</th></tr>' . ($rows ?: '<tr><td colspan="4">کالایی برای گریدِ شما تعریف نشده است.</td></tr>') . '</table></main></body></html>';
+    exit;
+}
 vmsg('یافت نشد', 404, 'یافت نشد');

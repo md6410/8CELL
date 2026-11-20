@@ -19,11 +19,15 @@ function ledger_chart(): array {
         ['5', 'بهای تمام‌شده', null, 'D', 'cogs', null], ['5101', 'بهای تمام‌شدهٔ کالای فروش‌رفته', '5', 'D', 'cogs', 'cogs'],
         ['6', 'هزینه‌ها', null, 'D', 'expense', null], ['6101', 'حقوق و دستمزد', '6', 'D', 'expense', 'salary'], ['6102', 'پورسانت', '6', 'D', 'expense', 'commission'],
         ['6103', 'کارمزدِ کانال‌ها', '6', 'D', 'expense', 'channel_fee'], ['6104', 'ضایعات و کسریِ کالا', '6', 'D', 'expense', 'stock_loss'], ['6105', 'کسریِ صندوق', '6', 'D', 'expense', 'cash_short'],
-        ['6106', 'هزینه‌های عمومی', '6', 'D', 'expense', 'general'],
+        ['6106', 'هزینه‌های عمومی', '6', 'D', 'expense', 'general'], ['6107', 'هزینهٔ ارسال و پیک', '6', 'D', 'expense', 'shipping'],
     ];
 }
 function ledger_seed_accounts(): void {
-    if ((int)val("SELECT COUNT(*) FROM accounts")) return;
+    if ((int)val("SELECT COUNT(*) FROM accounts")) { // پس از به‌روزرسانی: فقط سرفصل‌های سیستمیِ تازه
+        foreach (ledger_chart() as [$code, $name, $parent, $nat, $kind, $key]) if ($key && !val("SELECT id FROM accounts WHERE system_key=?", [$key]) && !val("SELECT id FROM accounts WHERE code=?", [$code]))
+            ins('accounts', ['code' => $code, 'name' => $name, 'parent_id' => $parent ? (int)val("SELECT id FROM accounts WHERE code=?", [$parent]) ?: null : null, 'level' => strlen($code) == 1 ? 'group' : (strlen($code) == 2 ? 'kol' : 'moein'), 'nature' => $nat, 'kind' => $kind, 'system_key' => $key]);
+        return;
+    }
     $ids = [];
     foreach (ledger_chart() as [$code, $name, $parent, $nat, $kind, $key])
         $ids[$code] = ins('accounts', ['code' => $code, 'name' => $name, 'parent_id' => $parent ? $ids[$parent] : null, 'level' => strlen($code) == 1 ? 'group' : (strlen($code) == 2 ? 'kol' : 'moein'), 'nature' => $nat, 'kind' => $kind, 'system_key' => $key]);
@@ -124,6 +128,14 @@ function ledger_rules(string $ev, $id, array $x): array {
             if ($c['direction'] === 'in') { $lines[] = L(acc_id('bank'), (int)$c['amount'], 0, 'bank', $c['bank_account_id']); $lines[] = L(acc_id('cheque_in'), 0, (int)$c['amount'], $c['party_type'], $c['party_id']); }
             else { $lines[] = L(acc_id('cheque_out'), (int)$c['amount'], 0, $c['party_type'], $c['party_id']); $lines[] = L(acc_id('bank'), 0, (int)$c['amount'], 'bank', $c['bank_account_id']); }
             break;
+        case 'cheque_recv': case 'cheque_back': // چکِ مشتری: با ثبت از طلب کم و به اسنادِ دریافتنی می‌رود؛ برگشت/عودت برعکس
+            $c = row("SELECT * FROM cheques WHERE id=?", [$id]); $a = (int)$c['amount'];
+            $descr = ($ev === 'cheque_recv' ? 'دریافتِ چکِ ' : 'برگشت/عودتِ چکِ ') . $c['number'] . ' از ' . ($c['party_name'] ?: '—');
+            if ($ev === 'cheque_recv') { $lines[] = L(acc_id('cheque_in'), $a, 0, 'customer', $c['party_id']); $lines[] = L(acc_id('receivable'), 0, $a, 'customer', $c['party_id']); }
+            else { $lines[] = L(acc_id('receivable'), $a, 0, 'customer', $c['party_id']); $lines[] = L(acc_id('cheque_in'), 0, $a, 'customer', $c['party_id']); }
+            break;
+        case 'ship_cost': $s = row("SELECT * FROM shipments WHERE id=?", [$id]); $descr = 'هزینهٔ ارسالِ ' . ($s['tracking'] ?: '#' . $id); $lines[] = L(acc_id('shipping'), (int)$s['cost'], 0);
+            $lines[] = $s['paid_from'] === 'bank' ? L(acc_id('bank'), 0, (int)$s['cost'], 'bank', (int)($x['bank_account_id'] ?? 0) ?: null) : L(acc_id('cash'), 0, (int)$s['cost'], 'cashbox', (int)($x['cashbox_id'] ?? 0) ?: null); break;
         case 'expense': $descr = (string)($x['descr'] ?? 'هزینه'); $lines[] = L((int)($x['account_id'] ?? acc_id('general')), (int)$x['amount'], 0); $lines[] = $x['method'] === 'cash' ? L(acc_id('cash'), 0, (int)$x['amount']) : L(acc_id('bank'), 0, (int)$x['amount'], 'bank', $x['bank_account_id'] ?: null); break;
         case 'manual': $descr = (string)($x['descr'] ?? 'سندِ دستی'); $lines = $x['lines']; break;
         default: throw new UserError('رویدادِ مالیِ ناشناخته: ' . $ev);
@@ -217,9 +229,10 @@ function cheque_status(int $id, string $status, int $bankId = 0): void {
     $c = row("SELECT * FROM cheques WHERE id=?", [$id]); if (!$c) throw new UserError('چک یافت نشد');
     if (!in_array($status, ['cleared', 'bounced', 'pending', 'returned'], true)) throw new UserError('وضعیتِ نامعتبر');
     if ($c['status'] === 'cleared') throw new UserError('چکِ وصول‌شده تغییر نمی‌کند');
+    if (in_array($status, ['bounced', 'returned'], true)) { cheque_reverse($id, $status); return; }
     tx(function () use ($c, $id, $status, $bankId) {
         if ($bankId) upd('cheques', ['bank_account_id' => $bankId], 'id=?', [$id]);
-        upd('cheques', ['status' => $status], 'id=?', [$id]);
+        upd('cheques', ['status' => $status, 'status_at' => now()], 'id=?', [$id]);
         if ($status === 'cleared') ledger_post('cheque_clear', $id);
         audit('cheques', $id, 'status', ['status' => $c['status']], ['status' => $status], 'وضعیتِ چک');
     });

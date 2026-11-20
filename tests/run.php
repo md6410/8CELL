@@ -107,7 +107,7 @@ foreach (['8C-SHOP-01', '8C-SHOP-02', '8C-SHOP-03'] as $k) $T[$k] = fn() => ['sk
 // ── آزمون‌های تکمیلی (بیرون از فایلِ مشخصات)
 $T['X-CAPS'] = function () { $bad = []; foreach (pages_all() as $k => $p) if (empty($p[1])) $bad[] = "page:$k"; $public = ['me', 'time', 'login', 'otp_request', 'otp_verify', 'pk_login_options', 'pk_login', 'channel_catalog', 'channel_order', 'channel_status'];
     foreach (api_routes() as $k => $r) { if (empty($r[0])) $bad[] = "api:$k"; if ($r[0] === 'public' && !in_array($k, $public, true)) $bad[] = "public:$k"; if ($r[0] !== 'public' && $r[0] !== 'login' && array_diff(explode('|', $r[0]), array_keys(caps_flat()))) $bad[] = "cap:$k"; }
-    foreach (pages_all() as $k => $p) if ($p[1] !== 'login' && !isset(caps_flat()[$p[1]])) $bad[] = "pagecap:$k"; return expect(!$bad, implode(' ', $bad) ?: 'همهٔ صفحه‌ها و APIها cap دارند'); };
+    foreach (pages_all() as $k => $p) if ($p[1] !== 'login' && array_diff(explode('|', $p[1]), array_keys(caps_flat()))) $bad[] = "pagecap:$k"; return expect(!$bad, implode(' ', $bad) ?: 'همهٔ صفحه‌ها و APIها cap دارند'); };
 $T['X-JALALI'] = function () { $ok = jparse('1405/01/01') === '2026-03-21' && jdate('2026-03-21', false, false) === '1405/01/01' && jparse('۱۴۰۳/۱۲/۳۰') === '2025-03-20'; return expect($ok, jparse('1405/01/01') . ' ' . jparse('۱۴۰۳/۱۲/۳۰')); };
 $T['X-SCAN'] = function () { $a = scan_normalize('https://x.ir/t?k=ab 12'); $b = scan_normalize('۱۲۳۴'); return expect($a === 'AB12' && $b === '1234' && scan_normalize('') === '', "$a $b"); };
 $T['X-PARTNER'] = function () { $p = mk_product('x', 1000000); $g = (int)val("SELECT id FROM grades WHERE kind='partner'"); partner_grade_price_save($p, $g, 5, 15, 11); return expect(partner_price($p, null, $g, 1) === 950000 && partner_price($p, null, $g, 6) === 900000 && partner_price($p, null, $g, 20) === 850000, partner_price($p, null, $g, 6) . ''); };
@@ -235,6 +235,73 @@ $T['X-MOADIAN'] = function () { $F = __DIR__ . '/fixtures/';
     $ref = moadian_send($d); $twice = err(fn() => moadian_send($d)); $st = moadian_inquiry($d); $dd = doc_get($d);
     return expect($v && $okTid && $rt && count($e1) >= 2 && $okInv && str_starts_with($ref, 'REF-') && !$twice['ok'] && $st === 'accepted' && $dd['tax_id'] === $inv['header']['taxid'] && (int)val("SELECT COUNT(*) FROM moadian_log WHERE doc_id=?", [$d]) >= 2,
         "tid=$tid ref=$ref st=$st · " . ($dd['moadian_msg'] ?? '') . ' · ' . implode('؛ ', $e1)); };
+
+// ── v1.4: نسیه و قولِ پرداخت، بله، چک، رو به اتمام، روند، ٪ همهٔ اقلام، قیمتِ همکاری، ارسال، لینکِ نشانی، دسترسیِ تک‌کاربر
+function fake_bale(): void { $GLOBALS['__bale_sent'] = []; $GLOBALS['__bale_fake'] = function ($m, $p) { if ($m === 'sendMessage') { $GLOBALS['__bale_sent'][] = $p; return ['ok' => true]; } if ($m === 'getUpdates') return ['ok' => true, 'result' => $GLOBALS['__bale_updates'] ?? []]; return ['ok' => true]; }; }
+function sms_tpls_on(array $keys): void { $t = []; foreach ($keys as $i => $k) $t[$k] = ['id' => (string)(1000 + $i), 'on' => 1]; settings_save(['sms_templates' => $t, 'sms_test_mode' => '1']); }
+$T['X-CREDIT'] = function () { set_vat(0); fake_bale(); settings_save(['bale_bot_token' => 'x:y']); sms_tpls_on(['promise_due', 'promise_remind']);
+    upd('users', ['mobile' => '09120000009', 'bale_chat_id' => '555'], 'id=?', [1]); set_current_user(1);
+    $p = mk_product('x', 100000, 5); open_shift(1); $cid = customer_save(['kind' => 'person', 'name' => 'علی', 'mobile' => '09121234567', 'credit_limit' => 1000000]);
+    sell([['product_id' => $p, 'qty' => 3]], [['method' => 'credit', 'amount' => 300000]], ['customer_id' => $cid]);
+    $pid = promise_save(['customer_id' => $cid, 'due' => jdate(date('Y-m-d', strtotime('+1 day')), false, false), 'sms_customer' => 1]);
+    $n1 = promise_reminders(); $n1b = promise_reminders(); $baleN = count($GLOBALS['__bale_sent']);
+    $n2 = promise_reminders(date('Y-m-d', strtotime('+1 day'))); $logs = (int)val("SELECT COUNT(*) FROM notify_log WHERE ok=1");
+    $alerts = array_filter(dash_alerts(), fn($a) => $a['w'] === 'credit');
+    $pz = err(fn() => promise_save(['customer_id' => customer_save(['kind' => 'person', 'name' => 'بی‌بدهی', 'mobile' => '09121234500']), 'due' => '1405/09/01']));
+    customer_pay($cid, 300000, 'card'); promise_autoclose(); $st = val("SELECT status FROM credit_promises WHERE id=?", [$pid]);
+    $acc = credit_accounts();
+    return expect($n1 === 3 && $n1b === 0 && $baleN === 1 && $n2 === 3 && $logs === 6 && !$pz['ok'] && $st === 'kept' && !$acc, "pre=$n1 again=$n1b due=$n2 logs=$logs bale=$baleN st=$st"); };
+$T['X-BALELINK'] = function () { fake_bale(); settings_save(['bale_bot_token' => 'x:y']); $c = bale_link_code('users', 1); $GLOBALS['__bale_updates'] = [['update_id' => 7, 'message' => ['chat' => ['id' => 9001], 'text' => '/start ' . $c]]];
+    $n = bale_poll(); $u = row("SELECT bale_chat_id, bale_code FROM users WHERE id=1"); return expect($n === 1 && $u['bale_chat_id'] === '9001' && $u['bale_code'] === null && setting('bale_offset') === '8' && count($GLOBALS['__bale_sent']) === 1, json_encode($u)); };
+$T['X-CHEQUE'] = function () { set_vat(0); fake_bale(); settings_save(['bale_bot_token' => 'x:y']); upd('users', ['bale_chat_id' => '555'], 'id=?', [1]); set_current_user(1);
+    $p = mk_product('x', 1000000, 5); open_shift(1); $cid = customer_save(['kind' => 'person', 'name' => 'همکار', 'mobile' => '09121234567', 'credit_limit' => 9000000, 'is_partner' => 1]);
+    sell([['product_id' => $p, 'qty' => 3]], [['method' => 'credit', 'amount' => 3000000]], ['customer_id' => $cid]);
+    $c1 = cheque_receive(['customer_id' => $cid, 'number' => '123', 'sayad' => '1234567890123456', 'amount' => 2000000, 'due' => jdate(date('Y-m-d', strtotime('+2 day')), false, false)]); $b1 = customer_balance($cid);
+    $dup = err(fn() => cheque_receive(['customer_id' => $cid, 'number' => '124', 'sayad' => '1234567890123456', 'amount' => 1, 'due' => '1405/10/01']));
+    $rem = cheque_reminders(); cheque_reverse($c1, 'bounced', 'کسریِ موجودی'); $b2 = customer_balance($cid);
+    $c2 = cheque_receive(['customer_id' => $cid, 'number' => '125', 'amount' => 1000000, 'due' => '1405/10/01']); $bank = bank_account_save(['title' => 'ملت']); cheque_status($c2, 'cleared', $bank);
+    $tb = fn($k) => (int)val("SELECT COALESCE(SUM(debit-credit),0) FROM journal_lines WHERE account_id=?", [acc_id($k)]);
+    return expect($b1 === 1000000 && !$dup['ok'] && $rem >= 1 && $b2 === 3000000 && customer_balance($cid) === 2000000 && $tb('cheque_in') === 0 && $tb('receivable') === 2000000 && bank_balance($bank) === 1000000 && (int)val("SELECT COUNT(*) FROM journals WHERE source_type='cheque_back'") === 1, "b1=$b1 b2=$b2 rem=$rem recv=" . $tb('receivable')); };
+$T['X-LOWSTOCK'] = function () { set_vat(0); $a = mk_product('کم', 1000, 2); upd('products', ['min_stock' => 5], 'id=?', [$a]); $b = mk_product('پرفروش', 1000, 40); $c = mk_product('راکد', 1000, 3); $d = mk_product('تمام', 1000, 1); open_shift(1);
+    sell([['product_id' => $b, 'qty' => 35]], [['method' => 'cash', 'amount' => 35000]]); sell([['product_id' => $d, 'qty' => 1]], [['method' => 'cash', 'amount' => 1000]]);
+    $r = array_column(low_stock_report(), null, 'name'); $dig = 0; fake_bale(); settings_save(['bale_bot_token' => 'x:y']); upd('users', ['bale_chat_id' => '5'], 'id=?', [1]); $dig = stock_low_digest(); $dig2 = stock_low_digest();
+    return expect(isset($r['کم'], $r['پرفروش'], $r['تمام']) && !isset($r['راکد']) && $r['پرفروش']['days_left'] <= 7 && $r['تمام']['state'] === 'تمام شده' && $r['کم']['suggest'] >= 3 && $dig === 1 && $dig2 === 0, json_encode(array_map(fn($x) => [$x['state'], $x['days']], $r), JSON_UNESCAPED_UNICODE)); };
+$T['X-TREND'] = function () { set_vat(0); $a = mk_product('رو به رشد', 100000, 50, 60000); $b = mk_product('رو به افت', 100000, 50, 60000); open_shift(1);
+    $s1 = sell([['product_id' => $a, 'qty' => 1], ['product_id' => $b, 'qty' => 5]], [['method' => 'cash', 'amount' => 600000]]); upd('sales', ['d' => date('Y-m-d', strtotime('-40 day'))], 'id=?', [$s1]);
+    sell([['product_id' => $a, 'qty' => 4], ['product_id' => $b, 'qty' => 1]], [['method' => 'cash', 'amount' => 500000]]);
+    $t = array_column(trend_compare(['from' => date('Y-m-d', strtotime('-29 day')), 'to' => today()]), null, 'name'); $m = monthly_trend(12);
+    return expect(str_contains($t['رو به رشد']['trend'], 'افزایشی') && str_contains($t['رو به افت']['trend'], 'کاهشی') && $t['رو به رشد']['profit'] === 160000 && $t['رو به رشد']['rev_change'] === '۳۰۰٪' && count($m) === 12 && end($m)['_rev'] >= 500000,
+        $t['رو به رشد']['trend'] . ' ' . $t['رو به رشد']['rev_change'] . ' / ' . $t['رو به افت']['trend'] . ' ' . $t['رو به افت']['rev_change']); };
+$T['X-ADJ'] = function () { set_vat(0); $p = mk_product('x', 123456, 10); $q = mk_product('y', 200000, 10); open_shift(1); $c = cart_open();
+    cart_add_line_test((int)$c['id'], $p); cart_add_line_test((int)$c['id'], $q); $v = cart_adjust((int)$c['id'], '10');
+    $prices = array_column($v['items'], 'price'); $r = pos_checkout((int)$c['id'], [['method' => 'cash', 'amount' => 400000]]); $s = sale_get($r['sale_id']);
+    $sid = mk_user('sel', 'فروشنده', ['seller'], ['max_discount_pct' => 3]); $cb2 = ins('cashboxes', ['branch_id' => (int)val("SELECT id FROM branches LIMIT 1"), 'name' => 'صندوقِ ۲']); open_shift($sid, $cb2); set_current_user($sid); $c2 = cart_open(); $big = err(fn() => cart_adjust((int)$c2['id'], '-5')); $ok = err(fn() => cart_adjust((int)$c2['id'], '-3')); set_current_user(1);
+    return expect($prices == [136000, 220000] && (int)$s['total'] === 356000 && (float)$s['adj_pct'] === 10.0 && count($s['items']) === 2 && !$big['ok'] && $ok['ok'], json_encode($prices) . ' total=' . $s['total'] . ' ' . $big['msg']); };
+function cart_add_line_test(int $cart, int $pid): void { api_cart_add(['cart_id' => $cart, 'product_id' => $pid, 'qty' => 1]); }
+$T['X-PGRID'] = function () { $g = ins('grades', ['name' => 'طلایی', 'kind' => 'partner', 'disc_pct' => 0]); $p = mk_product('گوشی', 1000000, 5); $q = mk_product('قاب', 100000, 5);
+    $n = partner_prices_save_bulk([$p => [$g => '5'], $q => [$g => '10']], [$p => [$g => '20'], $q => [$g => '0']], [$p => [$g => '11'], $q => [$g => '']]);
+    $cid = customer_save(['kind' => 'person', 'name' => 'همکار', 'mobile' => '09121112222', 'is_partner' => 1, 'partner_grade_id' => $g]); $pl = array_column(partner_price_list($cid), null, 'name');
+    $n2 = partner_prices_save_bulk([$q => [$g => '0']], [$q => [$g => '0']], [$q => [$g => '']]); $t = plist_token($cid); $bad = plist_parse(substr($t, 0, -1) . (substr($t, -1) === 'A' ? 'B' : 'A'));
+    $d1 = partner_list_doc($cid, 2); $d2 = partner_list_doc($cid, 2);
+    return expect($n === 2 && $pl['گوشی']['price_one'] === 950000 && $pl['گوشی']['price_max'] === 800000 && $pl['قاب']['price_one'] === 90000 && $n2 === 1 && count(partner_price_list($cid)) === 1 && plist_parse($t) === $cid && $bad === null && $d1 === $d2 && str_starts_with($d1, 'PL-'), json_encode($pl, JSON_UNESCAPED_UNICODE)); };
+$T['X-SHIP'] = function () { set_vat(0); sms_tpls_on(['ship_track']); $p = mk_product('x', 100000, 5); open_shift(1); $cid = customer_save(['kind' => 'person', 'name' => 'رضا', 'mobile' => '09121234567']);
+    $a = address_save($cid, ['city' => 'تهران', 'address' => 'خیابانِ آزادی', 'plaque' => '۱۲', 'postal_code' => '1234567890']); $s = sell([['product_id' => $p, 'qty' => 1]], [['method' => 'cash', 'amount' => 100000]], ['customer_id' => $cid]);
+    $k = courier_save(['name' => 'پیک ۱', 'mobile' => '09129990000', 'carrier' => 'peyk']); $noAddr = err(fn() => ship_save(['carrier' => 'post']));
+    $id = ship_save(['sale_id' => $s, 'carrier' => 'snapp', 'courier_id' => $k, 'tracking' => 'SN-1', 'address_id' => $a, 'cost' => 85000, 'payer' => 'shop', 'paid_from' => 'cash', 'sms' => 1]);
+    $sh = row("SELECT * FROM shipments WHERE id=?", [$id]); ship_status($id, 'delivered'); $exp = (int)val("SELECT COALESCE(SUM(debit),0) FROM journal_lines WHERE account_id=?", [acc_id('shipping')]);
+    $id2 = ship_save(['sale_number' => (string)val("SELECT number FROM sales WHERE id=?", [$s]), 'carrier' => 'post', 'tracking' => 'P1', 'cost' => 50000, 'payer' => 'customer']); $sum = array_column(ship_cost_summary(date('Y-m-d'), date('Y-m-d')), null, 'carrier');
+    return expect(!$noAddr['ok'] && str_contains((string)$sh['address'], 'آزادی') && $sh['receiver_mobile'] === '09121234567' && $exp === 85000 && (int)val("SELECT COUNT(*) FROM sms_log WHERE tpl_key='ship_track'") === 1 && row("SELECT status FROM shipments WHERE id=?", [$id])['status'] === 'delivered' && (int)$sum['post']['cust_cost'] === 50000 && (int)$sum['snapp']['shop_cost'] === 85000, (string)$sh['address']); };
+$T['X-ADDR'] = function () { sms_tpls_on(['addr_link']); $r = addr_link_make(['mobile' => '09125556666', 'name' => 'نازنین', 'sms' => 1, 'postal' => 1]); $L = addr_link_parse($r['token']);
+    $tamper = addr_link_parse(str_replace('p.', 'm.', $r['token'])); $old = addr_link_parse(addr_link_token($r['customer_id'], false, time() - 2 * 86400));
+    $noPost = err(fn() => address_save($r['customer_id'], ['city' => 'کرج', 'address' => 'بلوار'], 'link', true)); $a1 = address_save($r['customer_id'], ['city' => 'کرج', 'address' => 'بلوار', 'postal_code' => '۳۱۴۵۶۷۸۹۰۱', 'lat' => '35.8', 'lng' => '50.9'], 'link', true);
+    $a2 = address_save($r['customer_id'], ['city' => 'کرج', 'address' => 'بلوار', 'postal_code' => '3145678901'], 'link', true); $geoOnly = address_save($r['customer_id'], ['lat' => '35.7', 'lng' => '51.4']);
+    $c = row("SELECT * FROM customers WHERE id=?", [$r['customer_id']]);
+    return expect($L && $L['postal'] && (int)$L['customer']['id'] === $r['customer_id'] && $tamper === null && !empty($old['expired']) && !$noPost['ok'] && $a1 === $a2 && $geoOnly > $a1 && str_contains((string)$c['address'], 'بلوار') && $c['postal_code'] === '3145678901' && str_contains($r['url'], 'v.php?a=') && (int)val("SELECT COUNT(*) FROM sms_log WHERE tpl_key='addr_link'") === 1, $r['url']); };
+$T['X-UCAPS'] = function () { $u = mk_user('kar', 'کارمند', []); user_save(['id' => $u, 'username' => 'kar', 'name' => 'کارمند', 'caps' => ['ship.manage', 'reports.profit', 'settings.edit'], '_caps_form' => 1]);
+    $L = user_load($u); $mid = mk_user('mid', 'سرپرست', [], []); q("INSERT INTO user_caps VALUES (?, 'users.edit'), (?, 'ship.manage')", [$mid, $mid]); set_current_user($mid);
+    $deny = err(fn() => user_save(['id' => $u, 'username' => 'kar', 'name' => 'کارمند', 'caps' => ['ledger.post'], '_caps_form' => 1]));
+    $keep = err(fn() => user_save(['id' => $u, 'username' => 'kar', 'name' => 'کارمند', 'caps' => [], '_caps_form' => 1])); set_current_user(1); $L2 = user_load($u);
+    return expect(can('ship.manage', $L) && can('settings.edit', $L) && !can('pos.use', $L) && !$deny['ok'] && $keep['ok'] && !can('ship.manage', $L2) && can('settings.edit', $L2) && can('reports.profit', $L2), implode(',', $L2['caps'])); };
 
 $res = []; $pass = 0; $fail = 0; $skip = 0;
 foreach ($T as $ref => $fn) {

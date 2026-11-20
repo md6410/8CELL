@@ -11,11 +11,11 @@ function caps_all(): array {
             'stock.in' => 'ورودِ انبار', 'stock.out' => 'خروجِ انبار و ارسال', 'stock.loss' => 'ضرر و عودت', 'labels.print' => 'چاپِ برچسب', 'labels.design' => 'طراحیِ برچسب', 'print.manage' => 'ایستگاه‌های چاپ'],
         'خرید' => ['purchase.view' => 'دیدنِ خرید', 'purchase.edit' => 'ثبتِ سفارش و فاکتورِ خرید', 'supplier.pay' => 'پرداخت به تأمین‌کننده'],
         'فروش' => ['pos.use' => 'صندوقِ فروش', 'pos.discount' => 'تخفیف در صندوق', 'pos.return' => 'مرجوعی', 'shift.manage' => 'مدیریتِ شیفت‌ها', 'partner.manage' => 'همکارانِ فروش',
-            'docs.view' => 'دیدنِ فاکتورها', 'docs.edit' => 'ساختنِ فاکتور', 'docs.issue' => 'ثبت و شماره‌گذاریِ فاکتور', 'channels.manage' => 'کانال‌های فروش'],
+            'ship.manage' => 'ارسال، پیک و لینکِ نشانی', 'docs.view' => 'دیدنِ فاکتورها', 'docs.edit' => 'ساختنِ فاکتور', 'docs.issue' => 'ثبت و شماره‌گذاریِ فاکتور', 'channels.manage' => 'کانال‌های فروش'],
         'کارکنان' => ['staff.ledger' => 'حسابِ کارکنان', 'commission.manage' => 'قاعدهٔ پورسانت', 'perf.view' => 'عملکردِ کارکنان', 'hr.view' => 'پروندهٔ کارکنان',
             'hr.edit' => 'ویرایشِ پرونده و قرارداد', 'hr.attendance' => 'حضور و مرخصی', 'hr.payroll' => 'حقوق و فیش'],
         'مشتریان' => ['customers.view' => 'دیدنِ مشتریان', 'customers.edit' => 'ویرایشِ مشتری', 'customers.credit' => 'نسیه و کیف پول'],
-        'مالی' => ['ledger.view' => 'دفترِ کل', 'ledger.post' => 'سندِ دستی و سرفصل', 'bank.manage' => 'بانک، صندوق و چک', 'acc.share' => 'سهمِ شرکا'],
+        'مالی' => ['ledger.view' => 'دفترِ کل', 'ledger.post' => 'سندِ دستی و سرفصل', 'bank.manage' => 'بانک، صندوق و چک', 'cheques.manage' => 'ثبت و پیگیریِ چک‌ها', 'notify.alerts' => 'دریافتِ هشدارها (بله/پیامک)', 'acc.share' => 'سهمِ شرکا'],
         'گزارش' => ['reports.dashboard' => 'داشبورد', 'reports.sales' => 'گزارشِ فروش', 'reports.profit' => 'سود و زیان', 'reports.export' => 'خروجیِ گزارش'],
     ];
     return apply_filters('caps', $c);
@@ -36,7 +36,7 @@ function roles_seed(): void {
     foreach (roles_builtin() as $slug => [$name, $caps]) {
         $id = (int)val("SELECT id FROM roles WHERE slug=?", [$slug]);
         if (!$id) $id = ins('roles', ['slug' => $slug, 'name' => $name, 'builtin' => 1]);
-        if (!(int)val("SELECT COUNT(*) FROM role_caps WHERE role_id=?", [$id])) foreach ($caps as $c) q("INSERT IGNORE INTO role_caps VALUES (?,?)", [$id, $c]);
+        if (!(int)val("SELECT COUNT(*) FROM role_caps WHERE role_id=?", [$id]) || $slug === 'admin') foreach ($caps as $c) q("INSERT IGNORE INTO role_caps VALUES (?,?)", [$id, $c]); // مدیر هر توانایی تازه را هم می‌گیرد
     }
 }
 
@@ -70,7 +70,9 @@ function user_load(int $uid): ?array {
     if (!$u) return null;
     unset($u['pass_hash']);
     $u['roles'] = array_column(rows("SELECT r.slug FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE ur.user_id=?", [$uid]), 'slug');
-    $u['caps'] = $u['is_super'] ? array_keys(caps_flat()) : array_column(rows("SELECT DISTINCT rc.cap FROM user_roles ur JOIN role_caps rc ON rc.role_id=ur.role_id WHERE ur.user_id=?", [$uid]), 'cap');
+    // توانایی = نقش‌ها ∪ دسترسی‌های تک‌تکِ همین کاربر (مثلِ Weby: هر کارِ مدیر را می‌شود به یک کارمند داد)
+    $u['caps'] = $u['is_super'] ? array_keys(caps_flat()) : array_values(array_unique(array_merge(array_column(rows("SELECT DISTINCT rc.cap FROM user_roles ur JOIN role_caps rc ON rc.role_id=ur.role_id WHERE ur.user_id=?", [$uid]), 'cap'),
+        array_column(rows("SELECT cap FROM user_caps WHERE user_id=?", [$uid]), 'cap'))));
     $u['branches'] = array_map('intval', array_column(rows("SELECT branch_id FROM user_branches WHERE user_id=?", [$uid]), 'branch_id'));
     return $u;
 }
@@ -118,6 +120,13 @@ function user_save(array $in): int {
         else { $d['created_at'] = now(); $id = ins('users', $d); audit('users', $id, 'create', null, ['username' => $d['username']], 'کاربرِ تازه'); }
         q("DELETE FROM user_roles WHERE user_id=?", [$id]);
         foreach ($roleIds as $r) q("INSERT IGNORE INTO user_roles VALUES (?,?)", [$id, $r]);
+        if (array_key_exists('caps', $in) || !empty($in['_caps_form'])) {
+            $old = array_column(rows("SELECT cap FROM user_caps WHERE user_id=?", [$id]), 'cap');
+            $new = array_values(array_intersect((array)($in['caps'] ?? []), array_keys(caps_flat())));
+            $me2 = current_user(); if ($me2 && !$me2['is_super']) $new = array_values(array_unique(array_merge($new, array_diff($old, $me2['caps'])))); // چیزی را که ویرایشگر ندارد نه می‌دهد نه می‌گیرد
+            q("DELETE FROM user_caps WHERE user_id=?", [$id]); foreach ($new as $c) q("INSERT IGNORE INTO user_caps VALUES (?,?)", [$id, $c]);
+            if ($old != $new) audit('users', $id, 'caps', ['caps' => implode(',', $old)], ['caps' => implode(',', $new)], 'دسترسی‌های کاربر');
+        }
         if (array_key_exists('branches', $in)) { q("DELETE FROM user_branches WHERE user_id=?", [$id]); foreach ((array)$in['branches'] as $b) q("INSERT IGNORE INTO user_branches VALUES (?,?)", [$id, (int)$b]); }
         return $id;
     });

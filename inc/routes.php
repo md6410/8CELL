@@ -7,7 +7,8 @@ function pages_all(): array {
     return apply_filters('pages', [
         'dashboard' => ['داشبوردِ امروز', 'reports.dashboard', 'گزارش', 1],
         'pos' => ['صندوقِ فروش', 'pos.use', 'فروش', 1], 'shifts' => ['شیفت‌ها', 'pos.use', 'فروش', 1], 'sales' => ['فروش‌ها', 'docs.view', 'فروش', 1], 'sale' => ['فروش', 'docs.view', 'فروش', 0],
-        'docs' => ['فاکتورها', 'docs.view', 'فروش', 1], 'doc' => ['سند', 'docs.view', 'فروش', 0], 'partners' => ['همکارانِ فروش', 'partner.manage', 'فروش', 1], 'payreqs' => ['تأییدِ واریزها', 'bank.manage', 'مالی', 1], 'payreq_file' => ['فیش', 'docs.view', 'فروش', 0], 'channels' => ['کانال‌های فروش', 'channels.manage', 'فروش', 1],
+        'docs' => ['فاکتورها', 'docs.view', 'فروش', 1], 'doc' => ['سند', 'docs.view', 'فروش', 0], 'partners' => ['همکارانِ فروش', 'partner.manage', 'فروش', 1], 'payreqs' => ['تأییدِ واریزها', 'bank.manage', 'مالی', 1], 'credit' => ['حساب‌های نسیه', 'customers.view', 'مالی', 1], 'cheques' => ['مدیریتِ چک', 'cheques.manage|bank.manage', 'مالی', 1],
+        'shipments' => ['ارسال و پیک', 'ship.manage', 'فروش', 1], 'partner_prices' => ['قیمتِ همکاری (گریدها)', 'partner.manage', 'فروش', 1], 'trends' => ['روندِ فروش و سود', 'reports.profit', 'گزارش', 1], 'notify' => ['هشدارها و بله', 'login', 'تنظیمات', 1], 'payreq_file' => ['فیش', 'docs.view', 'فروش', 0], 'channels' => ['کانال‌های فروش', 'channels.manage', 'فروش', 1],
         'products' => ['کالاها', 'products.view', 'کالا و انبار', 1], 'product' => ['کالا', 'products.view', 'کالا و انبار', 0], 'stock' => ['موجودی و ورود/خروج', 'stock.view', 'کالا و انبار', 1],
         'whops' => ['خروجِ سفارش‌ها', 'stock.out', 'کالا و انبار', 1], 'losses' => ['ضرر و عودت', 'stock.loss', 'کالا و انبار', 1], 'labels' => ['برچسب', 'labels.print', 'کالا و انبار', 1], 'print' => ['چاپگرِ مرکزی', 'print.manage', 'کالا و انبار', 1],
         'purchase' => ['خرید', 'purchase.view', 'خرید', 1], 'suppliers' => ['تأمین‌کنندگان', 'purchase.view', 'خرید', 1],
@@ -106,6 +107,7 @@ function api_routes(): array {
         'cart_qty' => ['pos.use', function ($in) { cart_set_qty((int)$in['item_id'], $in['qty']); return cart_view((int)$in['cart_id']); }, 'POST'],
         'cart_remove' => ['pos.use', function ($in) { cart_remove((int)$in['item_id']); return cart_view((int)$in['cart_id']); }, 'POST'],
         'cart_disc' => ['pos.discount', function ($in) { pos_line_discount((int)$in['item_id'], $in['disc'] ?? 0, (string)($in['note'] ?? '')); return cart_view((int)$in['cart_id']); }, 'POST'],
+        'cart_adjust' => ['pos.use', fn($in) => cart_adjust((int)$in['cart_id'], $in['pct'] ?? 0), 'POST'],
         'cart_doc_disc' => ['pos.discount', fn($in) => api_cart_doc_disc($in), 'POST'],
         'cart_customer' => ['pos.use', function ($in) { cart_set_customer((int)$in['cart_id'], (int)($in['customer_id'] ?? 0) ?: null); return cart_view((int)$in['cart_id']); }, 'POST'],
         'pos_checkout' => ['pos.use', fn($in) => pos_checkout((int)$in['cart_id'], (array)($in['payments'] ?? []), $in), 'POST'],
@@ -175,8 +177,28 @@ function api_routes(): array {
         'account_save' => ['ledger.post', fn($in) => ['id' => account_save($in)], 'POST'],
         'journal_manual' => ['ledger.post', fn($in) => ['id' => journal_manual($in)], 'POST'],
         'bank_save' => ['bank.manage', fn($in) => ['id' => bank_account_save($in)], 'POST'],
+        'promise_save' => ['customers.credit', fn($in) => ['id' => promise_save($in)], 'POST'],
+        'promise_set' => ['customers.credit', function ($in) { promise_set((int)$in['id'], (string)$in['status']); return ['ok' => true]; }, 'POST'],
+        'cheque_receive' => ['cheques.manage|customers.credit', fn($in) => ['id' => cheque_receive($in), 'msg' => 'چک ثبت و از بدهی کم شد'], 'POST'],
+        'cheque_reverse' => ['cheques.manage', function ($in) { cheque_reverse((int)$in['id'], ($in['status'] ?? '') === 'returned' ? 'returned' : 'bounced', (string)($in['note'] ?? '')); return ['ok' => true]; }, 'POST'],
+        'notify_run' => ['notify.alerts|settings.edit', fn($in) => notify_run() + ['msg' => 'یادآوری‌ها اجرا شد'], 'POST'],
+        'bale_link' => ['login', function ($in) { $t = ($in['kind'] ?? '') === 'customer' ? 'customers' : 'users'; $id = $t === 'users' ? (int)current_user()['id'] : (int)$in['id']; if ($t === 'customers') require_cap('customers.edit'); $c = bale_link_code($t, $id); return ['code' => $c, 'url' => bale_link_url($c), 'msg' => 'کدِ ' . $c . ' را برای باتِ بله بفرستید' . (bale_link_url($c) ? ': ' . bale_link_url($c) : '')]; }, 'POST'],
+        'bale_unlink' => ['login', function ($in) { $t = ($in['kind'] ?? '') === 'customer' ? 'customers' : 'users'; $id = $t === 'users' ? (int)current_user()['id'] : (int)$in['id']; if ($t === 'customers') require_cap('customers.edit'); upd($t, ['bale_chat_id' => null], 'id=?', [$id]); return ['ok' => true]; }, 'POST'],
+        'bale_test' => ['login', function ($in) { $u = current_user(); if (empty($u['bale_chat_id'])) throw new UserError('هنوز به بله وصل نشده‌اید'); $r = bale_send((string)$u['bale_chat_id'], '✅ آزمایشِ هشدارِ ' . setting('biz_name', '')); if (!$r['ok']) throw new UserError($r['msg']); return ['msg' => 'پیام رفت']; }, 'POST'],
+        'ship_save' => ['ship.manage', fn($in) => ['id' => ship_save($in), 'msg' => 'ارسال ثبت شد'], 'POST'],
+        'ship_status' => ['ship.manage', function ($in) { ship_status((int)$in['id'], (string)$in['status']); return ['ok' => true]; }, 'POST'],
+        'ship_sms' => ['ship.manage', function ($in) { $r = ship_sms((int)$in['id']); if (!$r['ok']) throw new UserError($r['msg']); return ['msg' => 'پیامک رفت']; }, 'POST'],
+        'courier_save' => ['ship.manage', fn($in) => ['id' => courier_save($in)], 'POST'],
+        'addr_link' => ['ship.manage|customers.edit|pos.use', fn($in) => addr_link_make($in), 'POST'],
+        'address_save' => ['customers.edit|ship.manage', fn($in) => ['id' => address_save((int)$in['customer_id'], $in)], 'POST'],
+        'address_delete' => ['customers.edit', function ($in) { q("DELETE FROM customer_addresses WHERE id=? AND customer_id=?", [(int)$in['id'], (int)$in['customer_id']]); return ['ok' => true]; }, 'POST'],
+        'addresses' => ['pos.use|ship.manage|customers.view', fn($in) => array_map(fn($a) => ['id' => (int)$a['id'], 'text' => address_text($a), 'receiver' => $a['receiver_name'], 'mobile' => $a['receiver_mobile'], 'postal' => $a['postal_code']], addresses_of((int)$in['customer_id'])), 'GET'],
+        'partner_prices_save' => ['partner.manage', fn($in) => ['n' => partner_prices_save_bulk((array)($in['one'] ?? []), (array)($in['max'] ?? []), (array)($in['qty'] ?? [])), 'msg' => 'ذخیره شد'], 'POST'],
+        'partner_list_send' => ['partner.manage', function ($in) { $ids = !empty($in['grade_id']) ? array_column(rows("SELECT id FROM customers WHERE is_partner=1 AND partner_grade_id=?", [(int)$in['grade_id']]), 'id') : [(int)$in['customer_id']];
+            $r = partner_list_send($ids, !empty($in['sms']) || !isset($in['sms']), !empty($in['bale']) || !isset($in['bale'])); return ['msg' => fa_num((string)$r['sent']) . ' همکار' . ($r['failed'] ? ' — ' . implode('؛ ', $r['failed']) : '')]; }, 'POST'],
+        'partner_list_link' => ['partner.manage', fn($in) => ['url' => plist_url((int)$in['customer_id'])], 'POST'],
         'cheque_save' => ['bank.manage', fn($in) => ['id' => cheque_save($in)], 'POST'],
-        'cheque_status' => ['bank.manage', function ($in) { cheque_status((int)$in['id'], (string)$in['status'], (int)($in['bank_account_id'] ?? 0)); return ['ok' => true]; }, 'POST'],
+        'cheque_status' => ['cheques.manage|bank.manage', function ($in) { cheque_status((int)$in['id'], (string)$in['status'], (int)($in['bank_account_id'] ?? 0)); return ['ok' => true]; }, 'POST'],
         'bank_reconcile' => ['bank.manage', fn($in) => bank_reconcile((int)$in['bank_account_id'], jparse($in['d'] ?? '') ?: today(), to_int($in['statement'] ?? 0), (string)($in['note'] ?? '')), 'POST'],
         'expense' => ['bank.manage', fn($in) => ['id' => expense_record($in)], 'POST'],
         // گزارش
@@ -197,9 +219,9 @@ function api_password_change(array $in): array {
 function api_settings_save(array $in): array {
     $allowed = ['vat_pct', 'tax_round', 'total_round', 'fx_round', 'doc_template', 'doc_color', 'doc_font_size', 'doc_pat_invoice', 'doc_pat_proforma', 'doc_pat_official', 'doc_pat_credit', 'doc_pad', 'doc_start', 'doc_reset_yearly', 'proforma_valid_days', 'proforma_gap_days', 'doc_total_round', 'doc_total_round_dir', 'doc_tax_round', 'doc_show_seller', 'doc_show_bank', 'doc_show_bank_pf', 'doc_show_stamp', 'doc_show_sig', 'doc_show_watermark', 'doc_show_validity', 'doc_show_words', 'doc_digits', 'invoice_title', 'proforma_title', 'off_title', 'doc_header_text', 'vf_on', 'vf_name', 'vf_mobile', 'doc_default_notes', 'doc_default_terms', 'doc_vat_on', 'biz_memory_id', 'biz_branch_code', 'biz_province', 'biz_city', 'biz_fax', 'biz_email', 'biz_website', 'sms_test_mode', 'sms_retry_max', 'smsir_api_key', 'update_repo', 'update_branch', 'update_auto', 'update_interval', 'update_token', 'base_url',
         'reserve_minutes', 'staff_debt_pct', 'staff_debt_cap', 'shortage_to_staff', 'holiday_rule', 'thursday_off', 'holiday_url', 'fx_nav_key', 'fx_nav_unit', 'fx_max_gap', 'scan_sound', 'captcha_after', 'sess_ttl_min',
-        'pos_require_unit', 'loss_sms_confirm', 'own_seller_code', 'sms_otp_ttl', 'sms_otp_cooldown', 'sms_otp_domain', 'sms_retry_gap', 'channel_price_tolerance', 'hr_rules', 'labor_rates', 'moadian_on', 'moadian_base', 'moadian_cert', 'moadian_secret_key', 'moadian_units', 'moadian_sstid_default'];
+        'pos_require_unit', 'loss_sms_confirm', 'own_seller_code', 'sms_otp_ttl', 'sms_otp_cooldown', 'sms_otp_domain', 'sms_retry_gap', 'channel_price_tolerance', 'hr_rules', 'labor_rates', 'adj_round', 'credit_remind_days', 'cheque_remind_days', 'stock_cover_days', 'notify_sms', 'notify_bale', 'notify_stock', 'bale_bot_token', 'bale_bot_username', 'moadian_on', 'moadian_base', 'moadian_cert', 'moadian_secret_key', 'moadian_units', 'moadian_sstid_default'];
     $s = [];
-    foreach ($allowed as $k) if (array_key_exists($k, $in)) { if (in_array($k, ['smsir_api_key', 'update_token', 'moadian_secret_key'], true) && $in[$k] === '') continue;
+    foreach ($allowed as $k) if (array_key_exists($k, $in)) { if (in_array($k, ['smsir_api_key', 'update_token', 'moadian_secret_key', 'bale_bot_token'], true) && $in[$k] === '') continue;
         if ($k === 'moadian_secret_key' && !openssl_pkey_get_private((string)$in[$k])) throw new UserError('کلیدِ خصوصیِ سامانهٔ مودیان معتبر نیست (PEM)');
         if ($k === 'moadian_cert' && trim((string)$in[$k]) !== '' && !openssl_x509_read(moadian_pem((string)$in[$k], 'CERTIFICATE'))) throw new UserError('گواهیِ سامانهٔ مودیان معتبر نیست'); $s[$k] = is_array($in[$k]) ? $in[$k] : trim((string)$in[$k]); }
     if (isset($s['hr_rules'])) $s['hr_rules'] = array_map(fn($v) => is_numeric(en_num((string)$v)) ? to_float($v) : $v, $s['hr_rules']);

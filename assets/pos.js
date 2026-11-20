@@ -15,7 +15,7 @@
     });
     $('.cart tbody').innerHTML = h || '<tr><td colspan="6" class="muted">سبد خالی است؛ کد را اسکن کنید.</td></tr>';
     var t = v.totals || {};
-    $('.sums').innerHTML = 'ناخالص ' + C.money(t.sub || 0) + ' · تخفیف ' + C.money((t.lineDisc || 0) + (t.docDisc || 0)) + ' · مالیات ' + C.money(t.vat || 0);
+    $('.sums').innerHTML = 'ناخالص ' + C.money(t.sub || 0) + ' · تخفیف ' + C.money((t.lineDisc || 0) + (t.docDisc || 0)) + ' · مالیات ' + C.money(t.vat || 0) + (v.cart && +v.cart.adj_pct ? ' · <b>' + C.fa(String(+v.cart.adj_pct)) + '٪ روی همهٔ اقلام</b>' : '');
     $('.tot').textContent = C.money(t.total || 0) + ' ریال';
     var cu = v.customer;
     $('.cust-info').innerHTML = cu ? '<b>' + C.esc(cu.name) + '</b> ' + C.fa(cu.mobile || '') + (cu.is_partner == 1 ? ' <span class="badge warn">همکار</span>' : '') + '<br><small>بدهیِ نسیه: ' + C.money(cu.balance) + ' · سقف: ' + C.money(cu.credit_limit) + ' · کیف پول: ' + C.money(cu.wallet) + '</small> <button class="btn sm cust-x">حذف</button>' : '<span class="muted">مشتریِ گذری</span>';
@@ -37,6 +37,7 @@
     var t = e.target;
     if (t.classList.contains('rm')) call('cart_remove', { item_id: t.getAttribute('data-id') });
     if (t.classList.contains('dsc')) { var d = prompt('تخفیفِ ردیف (مبلغ یا درصد مثلِ ۵٪):'); if (d !== null) call('cart_disc', { item_id: t.getAttribute('data-id'), disc: C.en(d).replace('٪', '%') }); }
+    if (t.classList.contains('adjall')) { var ap = prompt('درصدِ تغییرِ قیمتِ همهٔ اقلام (مثلاً ۵ یا ۳-؛ صفر = برگشت به قیمتِ اصلی):', V && V.cart ? C.fa(String(+V.cart.adj_pct || 0)) : '0'); if (ap !== null) call('cart_adjust', { pct: C.en(ap).replace('٪', '') }); }
     if (t.classList.contains('docdisc')) { var dd = prompt('تخفیفِ کلِ فاکتور (مبلغ یا درصد):'); if (dd !== null) call('cart_doc_disc', { disc: C.en(dd).replace('٪', '%') }); }
     if (t.classList.contains('cust-x')) call('cart_customer', { customer_id: 0 });
     if (t.classList.contains('cust-new')) { var m = prompt('موبایلِ مشتری:'); if (!m) return; var n = prompt('نام:') || ''; C.api('customer_quick', { mobile: C.en(m), name: n }).then(function (r) { call('cart_customer', { customer_id: r.id }); }).catch(function (er) { C.toast(er.message, 'e'); }); }

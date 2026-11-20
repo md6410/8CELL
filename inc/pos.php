@@ -128,13 +128,28 @@ function cart_remove(int $itemId): void {
 /** تخفیفِ ردیف با نامِ کاربر؛ سقف همین‌جا و دوباره در ثبت */
 function pos_line_discount(int $itemId, $amount, string $note = ''): void {
     $it = row("SELECT ci.*, p.unit_id FROM cart_items ci JOIN products p ON p.id=ci.product_id WHERE ci.id=?", [$itemId]); if (!$it) throw new UserError('ردیف یافت نشد');
-    cart_get((int)$it['cart_id']); require_cap('pos.discount');
+    $cc = cart_get((int)$it['cart_id']); require_cap('pos.discount'); $it['price'] = adj_price((int)$it['price'], (float)$cc['adj_pct']);
     $gross = line_amount((int)$it['qty'], (int)$it['price'], $it['unit_id'] ? (int)$it['unit_id'] : null);
     $s = trim(en_num((string)$amount)); $disc = str_ends_with($s, '%') ? (int)floor($gross * to_float($s) / 100) : to_int($s);
     if ($disc < 0 || $disc > $gross) throw new UserError('تخفیف نامعتبر است');
     discount_assert($gross, $disc);
     upd('cart_items', ['disc' => $disc, 'disc_by' => current_user()['id'] ?? null, 'note' => $note !== '' ? mb_cut($note, 200) : $it['note']], 'id=?', [$itemId]);
     audit('cart_items', $itemId, 'discount', null, ['disc' => $disc], 'تخفیفِ ردیف');
+}
+/** درصدِ کلِ سبد روی قیمتِ واحدِ همهٔ اقلام (نه یک ردیفِ تخفیف/اضافه): گرد به واحدِ adj_round (پیش‌فرض ۱۰۰۰ ریال) */
+function adj_price(int $price, float $pct): int {
+    if (abs($pct) < 1e-9 || $price <= 0) return $price;
+    $r = max(1, (int)setting('adj_round', '1000')); $v = $price * (100 + $pct) / 100;
+    return max(0, (int)(round($v / $r) * $r) ?: (int)round($v));
+}
+/** تعیینِ درصد: کاهش = تخفیف (توانایی و سقفِ تخفیفِ کاربر)، افزایش تا ۱۰۰٪ */
+function cart_adjust(int $cartId, $pct): array {
+    $c = cart_get($cartId); $p = round(to_float(str_replace(['%', '٪'], '', en_num((string)$pct))), 2); $u = current_user();
+    if ($p < -90 || $p > 100) throw new UserError('درصد باید بینِ ۹۰- و ۱۰۰ باشد');
+    if ($p < 0) { if (!can('pos.discount')) throw new UserError('کاهشِ قیمت دسترسیِ «تخفیف در صندوق» می‌خواهد', 403); discount_assert(10000, (int)round(-$p * 100), $u); }
+    upd('carts', ['adj_pct' => $p], 'id=?', [$cartId]);
+    audit('carts', $cartId, 'adjust', ['adj_pct' => (float)$c['adj_pct']], ['adj_pct' => $p], 'درصدِ کلِ سبد');
+    return cart_view($cartId);
 }
 function discount_assert(int $gross, int $disc, ?array $u = null): void {
     $u = $u ?: current_user(); if (!$u || $u['is_super'] || $gross <= 0 || $disc <= 0) return;
@@ -150,6 +165,7 @@ function cart_set_customer(int $cartId, ?int $customerId): void {
 function cart_view(int $cartId): array {
     $c = cart_get($cartId);
     $items = rows("SELECT ci.*, p.name, p.unit_id, v.title vt, u.code ucode FROM cart_items ci JOIN products p ON p.id=ci.product_id LEFT JOIN product_variants v ON v.id=ci.variant_id LEFT JOIN wh_units u ON u.id=ci.unit_id WHERE ci.cart_id=? ORDER BY ci.id", [$cartId]);
+    $adj = (float)$c['adj_pct']; foreach ($items as &$it0) { $it0['base_price'] = (int)$it0['price']; $it0['price'] = adj_price((int)$it0['price'], $adj); } unset($it0);
     $lines = array_map(fn($i) => ['title' => $i['name'] . ($i['vt'] ? ' — ' . $i['vt'] : ''), 'qty' => (int)$i['qty'], 'unit_id' => $i['unit_id'] ? (int)$i['unit_id'] : null, 'price' => (int)$i['price'], 'disc' => (int)$i['disc']], $items);
     $calc = $lines ? calc_doc($lines, ['doc_disc' => (int)$c['doc_disc']]) : ['total' => 0, 'sub' => 0, 'vat' => 0, 'lines' => [], 'lineDisc' => 0, 'docDisc' => 0];
     foreach ($items as $k => &$i) { $i['calc'] = $calc['lines'][$k] ?? null; $i['qty_show'] = qty_show((int)$i['qty'], $i['unit_id'] ? (int)$i['unit_id'] : null); }
@@ -197,19 +213,24 @@ function sale_commit(array $in): int {
         $whs = array_filter(array_map('intval', explode(',', (string)$channel['warehouse_ids']))); $wh = (int)($in['warehouse_id'] ?? 0) ?: ($whs ? reset($whs) : (int)val("SELECT id FROM warehouses WHERE active=1 ORDER BY id LIMIT 1"));
     }
     $cust = (int)($in['customer_id'] ?? 0) ?: null;
+    $adj = $channel ? 0.0 : round((float)($in['adj_pct'] ?? 0), 2);
+    if ($adj < 0 && $u && !can('pos.discount', $u)) throw new UserError('کاهشِ قیمت دسترسیِ «تخفیف در صندوق» می‌خواهد', 403);
     $lines = []; $meta = [];
     foreach ((array)($in['lines'] ?? []) as $l) {
         $pid = (int)($l['product_id'] ?? 0); $vid = (int)($l['variant_id'] ?? 0) ?: null; $qty = (int)($l['qty'] ?? 0);
         $p = product_get($pid); if (!$p) throw new UserError('کالای ناشناخته در سبد');
         if (!in_array($p['item_type'], wh_site_types(), true)) throw new UserError('«' . $p['name'] . '» کالای فروشی نیست');
-        $price = $channel && isset($l['price']) ? (int)$l['price'] : price_for($pid, $vid, $cust, $qty);
+        $price = $channel && isset($l['price']) ? (int)$l['price'] : adj_price(price_for($pid, $vid, $cust, $qty), $adj);
         $v = $vid ? variant_get($vid) : null;
         $lines[] = ['title' => $p['name'] . ($v ? ' — ' . $v['title'] : ''), 'qty' => $qty, 'unit_id' => $p['unit_id'] ? (int)$p['unit_id'] : null, 'price' => $price, 'disc' => (int)($l['disc'] ?? 0)];
         $meta[] = ['p' => $p, 'vid' => $vid, 'unit_ids' => array_map('intval', (array)($l['unit_ids'] ?? [])), 'retail' => retail_final_price($pid, $vid)];
     }
     if (!$lines) throw new UserError('سبد خالی است');
     $calc = calc_doc($lines, ['doc_disc' => (int)($in['doc_disc'] ?? 0), 'vat_pct' => vat_pct($d), 'tax_round' => tax_round_mode($d)]);
-    if (!$channel) discount_assert($calc['sub'], $calc['lineDisc'] + $calc['docDisc'], $u);
+    if (!$channel) { // کاهشِ درصدی هم جزوِ سقفِ تخفیف است: مبنا قیمتِ پیش از درصد
+        $orig = $adj < 0 ? (int)round($calc['sub'] * 100 / (100 + $adj)) : $calc['sub'];
+        discount_assert($orig, $orig - $calc['sub'] + $calc['lineDisc'] + $calc['docDisc'], $u);
+    }
     $xfer = !$channel && ($in['partner_mode'] ?? '') === 'transfer';
     if ($xfer) { // واریز به حساب: تا تأییدِ حسابدار بدهیِ همکار و کالا رزرو
         if (!$cust || !ptr_ready($cust)) throw new UserError('«واریز به حساب» برای این مشتری فعال نیست (همکار + حسابِ تعیین‌شده)');
@@ -227,12 +248,12 @@ function sale_commit(array $in): int {
     if ($wallet && $wallet > wallet_balance($cust)) throw new UserError('اعتبارِ کیف پول کافی نیست');
     $defer = !empty($in['defer_stock']);
     try {
-        $saleId = tx(function () use ($in, $token, $channel, $shift, $cb, $branch, $wh, $seller, $cust, $calc, $meta, $plan, $credit, $wallet, $defer, $d, $u, $xfer) {
+        $saleId = tx(function () use ($in, $token, $channel, $shift, $cb, $branch, $wh, $seller, $cust, $calc, $meta, $plan, $credit, $wallet, $defer, $d, $u, $xfer, $adj) {
             $jy = substr(jdate($d, false, false), 0, 4);
             $sid = ins('sales', ['cart_token' => $token, 'channel_id' => $channel['id'] ?? null, 'branch_id' => $branch, 'cashbox_id' => $cb['id'] ?? null, 'shift_id' => $shift['id'] ?? null, 'warehouse_id' => $wh,
                 'seller_id' => $seller, 'customer_id' => $cust, 'partner_mode' => $in['partner_mode'] ?? null, 'ship_to' => !empty($in['ship_to']) ? json_encode($in['ship_to'], JSON_UNESCAPED_UNICODE) : null,
                 'd' => $d, 'at' => now(), 'subtotal' => $calc['sub'], 'line_disc' => $calc['lineDisc'], 'doc_disc' => $calc['docDisc'], 'tax' => $calc['vat'], 'round_adj' => $calc['roundAdj'], 'total' => $calc['total'],
-                'channel_fee' => (int)($in['channel_fee'] ?? 0), 'fulfil' => $defer ? ($xfer ? 'await_pay' : 'pending') : 'done', 'note' => mb_cut((string)($in['note'] ?? ''), 400) ?: null]);
+                'channel_fee' => (int)($in['channel_fee'] ?? 0), 'adj_pct' => $adj, 'fulfil' => $defer ? ($xfer ? 'await_pay' : 'pending') : 'done', 'note' => mb_cut((string)($in['note'] ?? ''), 400) ?: null]);
             upd('sales', ['number' => ($channel ? 'C' : 'S') . $jy . '-' . sprintf('%05d', doc_seq_next('sale-' . $jy))], 'id=?', [$sid]);
             $cartId = !empty($in['cart_id']) ? (int)$in['cart_id'] : null; $totalCost = 0;
             foreach ($calc['lines'] as $k => $l) {
@@ -286,7 +307,7 @@ function pos_checkout(int $cartId, array $payments, array $opt = []): array {
         if (!isset($byKey[$k])) { $byKey[$k] = count($lines); $lines[] = ['product_id' => (int)$i['product_id'], 'variant_id' => $i['variant_id'], 'qty' => 0, 'disc' => 0, 'unit_ids' => []]; }
         $j = $byKey[$k]; $lines[$j]['qty'] += (int)$i['qty']; $lines[$j]['disc'] += (int)$i['disc']; if ($i['unit_id']) $lines[$j]['unit_ids'][] = (int)$i['unit_id'];
     }
-    $sid = sale_commit(['cart_token' => $c['token'], 'cart_id' => $cartId, 'shift_id' => $c['shift_id'], 'customer_id' => $c['customer_id'], 'doc_disc' => (int)$c['doc_disc'], 'lines' => $lines,
+    $sid = sale_commit(['cart_token' => $c['token'], 'cart_id' => $cartId, 'shift_id' => $c['shift_id'], 'customer_id' => $c['customer_id'], 'doc_disc' => (int)$c['doc_disc'], 'adj_pct' => (float)$c['adj_pct'], 'lines' => $lines,
         'payments' => $payments, 'note' => $c['note'], 'due' => $opt['due'] ?? null, 'partner_mode' => $opt['partner_mode'] ?? null, 'ship_to' => $opt['ship_to'] ?? null, 'defer_stock' => !empty($opt['defer_stock'])]);
     $s = row("SELECT number, total FROM sales WHERE id=?", [$sid]);
     $change = pay_plan_validate((int)$s['total'], $payments)['change'];

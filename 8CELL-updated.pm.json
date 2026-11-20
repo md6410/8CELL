@@ -109797,6 +109797,663 @@
      "source": "tests/run.php"
     }
    ]
+  },
+  {
+   "id": "new-8",
+   "parent": 2403,
+   "order": 187,
+   "kind": "task",
+   "title": "قولِ پرداخت و یادآوریِ نسیه",
+   "summary": "مبلغ و تاریخی که مشتری/همکار قول داده؛ یک روز پیش و سرِ موعد هشدار به مدیران (داشبورد، بله، پیامک) و اگر خواسته شد به خودش",
+   "details": "نسخهٔ ۱.۴.۰",
+   "inputs": [
+    {
+     "name": "بدهیِ نسیه",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    },
+    {
+     "name": "تاریخِ قول",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "هشدار و یادآوری",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "ثبتِ قول ← cron/دکمه ← promise_reminders (یک بار برای هر گیرنده) ← با صفر شدنِ بدهی «عمل شد»",
+   "tech": "inc/credit.php، pages/credit.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "v1.4"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18092,
+     "ref": "X-CREDIT",
+     "title": "قولِ پرداخت و یادآوری",
+     "port": "",
+     "state": "",
+     "given": "فروشِ نسیه ۳۰۰٬۰۰۰ و قول برای فردا با پیامک به مشتری",
+     "expect_kind": "value",
+     "expect": "پیش‌یادآوری ۳ پیام (بله + پیامکِ مدیر + پیامکِ مشتری)، تکرار صفر، سرِ موعد ۳ پیام، پس از پرداخت «عمل شد»",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-9",
+   "parent": 2211,
+   "order": 187,
+   "kind": "section",
+   "title": "هشدار با بله و پیامک",
+   "summary": "گیرندهٔ هشدار = هر کاربر با توانایی «دریافتِ هشدارها»؛ بله (اتصال با کد) و پیامکِ قالبی؛ هر رویداد یک بار",
+   "details": "نسخهٔ ۱.۴.۰",
+   "inputs": [
+    {
+     "name": "رویدادِ هشدار",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "پیام در بله/پیامک",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "bale_poll ← اتصال؛ notify_managers/notify_customer ← notify_log یکتا",
+   "tech": "inc/notify.php، pages/notify.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "v1.4"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18093,
+     "ref": "X-BALELINK",
+     "title": "اتصالِ کاربر به بله",
+     "port": "",
+     "state": "",
+     "given": "کدِ اتصال و پیامِ /start در getUpdates",
+     "expect_kind": "value",
+     "expect": "گفت‌وگو وصل، کد پاک، offset جلو",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-10",
+   "parent": 2417,
+   "order": 187,
+   "kind": "task",
+   "title": "چکِ مشتری و همکار",
+   "summary": "ثبتِ چک با صیادی؛ از بدهی کم و به اسنادِ دریافتنی؛ برگشت/عودت بدهی را برمی‌گرداند؛ وصول به بانک؛ هشدارِ سررسید",
+   "details": "نسخهٔ ۱.۴.۰",
+   "inputs": [
+    {
+     "name": "چکِ دریافتی",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "ماندهٔ مشتری و اسناد",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "cheque_receive ← سند cheque_recv؛ cheque_reverse ← cheque_back؛ cheque_status cleared ← cheque_clear",
+   "tech": "inc/credit.php، pages/cheques.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "v1.4"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18094,
+     "ref": "X-CHEQUE",
+     "title": "چکِ همکار: ثبت، برگشت، وصول",
+     "port": "",
+     "state": "",
+     "given": "بدهی ۳ میلیون؛ چکِ ۲ میلیون؛ صیادیِ تکراری؛ برگشت؛ چکِ ۱ میلیون وصول",
+     "expect_kind": "value",
+     "expect": "بدهی ۱م ← برگشت ۳م ← ۲م؛ اسنادِ دریافتنی صفر؛ بانک ۱م",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-11",
+   "parent": 2430,
+   "order": 187,
+   "kind": "section",
+   "title": "کالاهای رو به اتمام",
+   "summary": "موجودیِ آزاد، حداقل، فروشِ ۳۰ روز، چند روز کافی است و پیشنهادِ خرید؛ هشدار در داشبورد و خلاصهٔ روزانه",
+   "details": "نسخهٔ ۱.۴.۰",
+   "inputs": [
+    {
+     "name": "موجودی و فروش",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "فهرستِ رو به اتمام",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "low_stock_report",
+   "tech": "inc/reports.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "v1.4"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18095,
+     "ref": "X-LOWSTOCK",
+     "title": "رو به اتمام",
+     "port": "",
+     "state": "",
+     "given": "زیرِ حداقل، پرفروشِ ۵ روزه، تمام‌شده، راکد",
+     "expect_kind": "value",
+     "expect": "سه مورد اول در فهرست، راکد نه؛ خلاصهٔ روزانه یک بار",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-12",
+   "parent": 2430,
+   "order": 187,
+   "kind": "section",
+   "title": "روندِ فروش و سود",
+   "summary": "مقایسهٔ هر کالا/دسته/مشتری/فروشنده/کانال با دورهٔ قبل (افزایشی/کاهشی)، روندِ ۱۲ ماه با نمودار، سن‌بندیِ بدهی، روش‌های دریافت، هزینه‌ها، ارسال",
+   "details": "نسخهٔ ۱.۴.۰",
+   "inputs": [
+    {
+     "name": "فروش و بها",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "گزارشِ روند",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "sales_agg، trend_compare، monthly_trend",
+   "tech": "inc/reports.php، pages/trends.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "v1.4"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18096,
+     "ref": "X-TREND",
+     "title": "روندِ کالا",
+     "port": "",
+     "state": "",
+     "given": "۱ و ۵ عدد ۴۰ روز پیش، ۴ و ۱ عدد امروز",
+     "expect_kind": "value",
+     "expect": "رشد ۳۰۰٪ افزایشی، افت کاهشی؛ ۱۲ ماه",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-13",
+   "parent": 2331,
+   "order": 187,
+   "kind": "task",
+   "title": "٪ روی همهٔ اقلام",
+   "summary": "کم/زیاد کردنِ درصدیِ قیمتِ واحدِ همهٔ ردیف‌ها (صندوق و فاکتورساز)، نه یک ردیفِ جدا؛ کاهش زیرِ سقفِ تخفیفِ کاربر",
+   "details": "نسخهٔ ۱.۴.۰",
+   "inputs": [
+    {
+     "name": "درصد",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "قیمت‌های تازه",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "cart_adjust ← adj_price در cart_view و sale_commit؛ دکمهٔ «٪ همهٔ اقلام» در ویرایشگرِ سند",
+   "tech": "inc/pos.php، assets/pos.js، assets/doc-editor.js",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "v1.4"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18097,
+     "ref": "X-ADJ",
+     "title": "٪ همهٔ اقلام",
+     "port": "",
+     "state": "",
+     "given": "+۱۰٪ روی ۱۲۳٬۴۵۶ و ۲۰۰٬۰۰۰؛ فروشندهٔ با سقفِ ۳٪",
+     "expect_kind": "value",
+     "expect": "۱۳۶٬۰۰۰ و ۲۲۰٬۰۰۰ (گرد به ۱۰۰۰)؛ ۵-٪ رد، ۳-٪ مجاز",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-14",
+   "parent": 2341,
+   "order": 187,
+   "kind": "task",
+   "title": "قیمتِ همکاری به‌صورتِ یک‌جا و فهرستِ قیمت",
+   "summary": "جدولِ کالا × گرید (تکی/بیشینه/تعداد) با یک ذخیره، فهرستِ قیمتِ هر همکار با شمارهٔ PL و لینکِ ۳۰ روزه، فرستادن با پیامک/بله",
+   "details": "نسخهٔ ۱.۴.۰",
+   "inputs": [
+    {
+     "name": "گرید و قاعده",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "فهرستِ قیمتِ همکار",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "partner_prices_save_bulk، partner_price_list، plist_token",
+   "tech": "inc/partner.php، pages/partner_prices.php، v.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "v1.4"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18098,
+     "ref": "X-PGRID",
+     "title": "قیمتِ همکاری یک‌جا",
+     "port": "",
+     "state": "",
+     "given": "دو کالا برای گریدِ طلایی؛ صفر کردنِ یکی؛ لینکِ دست‌کاری‌شده",
+     "expect_kind": "value",
+     "expect": "۹۵۰٬۰۰۰/۸۰۰٬۰۰۰ و ۹۰٬۰۰۰؛ حذف؛ لینکِ بد رد؛ یک شمارهٔ PL در روز",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-15",
+   "parent": 2316,
+   "order": 187,
+   "kind": "module",
+   "title": "ارسال و پیک",
+   "summary": "ثبتِ ارسال با پیکِ فروشگاه، اسنپ‌باکس، تپسی‌پک، الوپیک، پست، تیپاکس، چاپار، باربری: رهگیری، هزینه و پرداخت‌کننده، COD، وضعیت، پیامکِ رهگیری؛ هزینهٔ فروشگاه سندِ «هزینهٔ ارسال و پیک»",
+   "details": "نسخهٔ ۱.۴.۰",
+   "inputs": [
+    {
+     "name": "فروش و نشانی",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "ارسالِ ثبت‌شده",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "ship_save ← ledger ship_cost؛ ship_status؛ ship_cost_summary",
+   "tech": "inc/ship.php، pages/shipments.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "v1.4"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18099,
+     "ref": "X-SHIP",
+     "title": "ثبتِ ارسال",
+     "port": "",
+     "state": "",
+     "given": "اسنپ با هزینهٔ فروشگاه ۸۵٬۰۰۰ و پست با پس‌کرایه",
+     "expect_kind": "value",
+     "expect": "نشانی از دفترچه، سندِ هزینهٔ ارسال، پیامکِ رهگیری، خلاصه به تفکیکِ شرکت",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-16",
+   "parent": "new-15",
+   "order": 187,
+   "kind": "task",
+   "title": "لینکِ ثبتِ نشانی برای مشتری",
+   "summary": "لینکِ امضاشدهٔ ۷ روزه (پیامک یا کپی)؛ مشتری بی‌ورود نشانی، کدِ پستی و موقعیت (GPS) را می‌زند و در دفترچهٔ نشانی‌اش ذخیره می‌شود",
+   "details": "نسخهٔ ۱.۴.۰",
+   "inputs": [
+    {
+     "name": "موبایلِ مشتری",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "نشانیِ ذخیره‌شده",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "addr_link_make ← v.php?a= ← address_save",
+   "tech": "inc/ship.php، v.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "v1.4"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18100,
+     "ref": "X-ADDR",
+     "title": "لینکِ نشانی",
+     "port": "",
+     "state": "",
+     "given": "موبایلِ تازه با نشانیِ پستی؛ توکنِ دست‌کاری/منقضی؛ بی‌کدِ پستی",
+     "expect_kind": "value",
+     "expect": "مشتری ساخته شد، دست‌کاری/منقضی رد، کدِ پستی لازم، تکراری یکی",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-17",
+   "parent": 2239,
+   "order": 187,
+   "kind": "task",
+   "title": "دسترسیِ تک‌کاربر",
+   "summary": "علاوه بر نقش، هر توانایی (همهٔ کارهای مدیر) مستقیم به یک کارمند داده می‌شود؛ هر کس فقط چیزی را می‌دهد که خودش دارد",
+   "details": "نسخهٔ ۱.۴.۰",
+   "inputs": [
+    {
+     "name": "توانایی‌ها",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "دسترسیِ کاربر",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "user_caps ∪ role_caps در user_load",
+   "tech": "inc/auth.php، pages/users.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "v1.4"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18101,
+     "ref": "X-UCAPS",
+     "title": "دسترسیِ تک‌کاربر",
+     "port": "",
+     "state": "",
+     "given": "دادنِ ۳ توانایی بی‌نقش؛ ویرایشگرِ محدود",
+     "expect_kind": "value",
+     "expect": "کاربر می‌تواند؛ ویرایشگر توانِ نداشته را نمی‌دهد و نمی‌گیرد",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
   }
  ],
  "dependencies": [
@@ -122302,6 +122959,184 @@
    ],
    "decisions": [],
    "how_to_test": "بازدیدِ صفحه‌ها",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-8",
+   "status": "done",
+   "progress": 100,
+   "summary": "درخواست‌های تازه — نسخهٔ ۱.۴.۰",
+   "how": "قولِ پرداخت روی صفحهٔ مشتری؛ صفحهٔ «حساب‌های نسیه» (همه/مشتری/همکار، موعد، دیرکرد، چکِ در جریان)؛ یادآوری با cron یا دکمه.",
+   "files_changed": [
+    "inc/credit.php",
+    "pages/credit.php",
+    "pages/customer.php",
+    "inc/reports.php",
+    "index.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-CREDIT",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-9",
+   "status": "done",
+   "progress": 100,
+   "summary": "درخواست‌های تازه — نسخهٔ ۱.۴.۰",
+   "how": "بله (روالِ Weby balebot): توکن در «هشدارها و بله»، هر کاربر با کد وصل می‌شود؛ پیامکِ مدیر با قالب‌های promise_due، cheque_due، stock_low.",
+   "files_changed": [
+    "inc/notify.php",
+    "pages/notify.php",
+    "inc/sms.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-BALELINK و X-CREDIT",
+   "deviations": "بله با توکنِ واقعی آزموده نشد (شبکهٔ محیطِ ساخت بسته است).",
+   "remaining": "آزمون با باتِ واقعی",
+   "actual_days": 1
+  },
+  {
+   "node": "new-10",
+   "status": "done",
+   "progress": 100,
+   "summary": "درخواست‌های تازه — نسخهٔ ۱.۴.۰",
+   "how": "صفحهٔ «مدیریتِ چک» (در جریان/وصول/برگشتی/عودت، وصول با انتخابِ حساب)؛ دریافتِ چک از صفحهٔ مشتری؛ «چک» از روش‌های دریافتِ ساده حذف شد تا هر چک پیگیری شود.",
+   "files_changed": [
+    "inc/credit.php",
+    "inc/ledger.php",
+    "pages/cheques.php",
+    "pages/customer.php",
+    "pages/banks.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-CHEQUE",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-11",
+   "status": "done",
+   "progress": 100,
+   "summary": "درخواست‌های تازه — نسخهٔ ۱.۴.۰",
+   "how": "گزارشِ «کالاهای رو به اتمام و تمام‌شده» + هشدارِ داشبورد + خلاصهٔ روزانه در بله/پیامک.",
+   "files_changed": [
+    "inc/reports.php",
+    "inc/notify.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-LOWSTOCK",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-12",
+   "status": "done",
+   "progress": 100,
+   "summary": "درخواست‌های تازه — نسخهٔ ۱.۴.۰",
+   "how": "صفحهٔ «روندِ فروش و سود» با نمودارِ ۱۲ ماه و بیشترین رشد/افت؛ ۱۱ گزارشِ تازه در گزارش‌ساز (با خروجیِ اکسل).",
+   "files_changed": [
+    "inc/reports.php",
+    "pages/trends.php",
+    "assets/app.css"
+   ],
+   "decisions": [],
+   "how_to_test": "X-TREND",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-13",
+   "status": "done",
+   "progress": 100,
+   "summary": "درخواست‌های تازه — نسخهٔ ۱.۴.۰",
+   "how": "دکمهٔ «٪ همهٔ اقلام» در صندوق و فاکتورساز؛ رسید و فاکتور فقط قیمت‌های تازه را نشان می‌دهند (درصد فقط در دفترِ ممیزی و ستونِ adj_pct فروش).",
+   "files_changed": [
+    "inc/pos.php",
+    "inc/routes.php",
+    "assets/pos.js",
+    "assets/doc-editor.js",
+    "pages/pos.php",
+    "pages/doc.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-ADJ",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-14",
+   "status": "done",
+   "progress": 100,
+   "summary": "درخواست‌های تازه — نسخهٔ ۱.۴.۰",
+   "how": "صفحهٔ «قیمتِ همکاری (گریدها)»؛ فهرستِ قیمتِ همکار در صفحهٔ مشتری و لینکِ عمومی v.php?pl=.",
+   "files_changed": [
+    "inc/partner.php",
+    "pages/partner_prices.php",
+    "pages/customer.php",
+    "v.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-PGRID",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-15",
+   "status": "done",
+   "progress": 100,
+   "summary": "درخواست‌های تازه — نسخهٔ ۱.۴.۰",
+   "how": "صفحهٔ «ارسال و پیک» و کادرِ ارسال در صفحهٔ فروش؛ پیک‌ها؛ گزارشِ هزینه و آمارِ ارسال.",
+   "files_changed": [
+    "inc/ship.php",
+    "pages/shipments.php",
+    "pages/sale.php",
+    "inc/ledger.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-SHIP",
+   "deviations": "اتصالِ API به اسنپ/پست/تیپاکس ساخته نشد؛ ثبتِ دستی و پیامکِ رهگیری است.",
+   "remaining": "در صورتِ نیاز، اتصالِ API هر شرکت به‌عنوانِ ماژول",
+   "actual_days": 1
+  },
+  {
+   "node": "new-16",
+   "status": "done",
+   "progress": 100,
+   "summary": "درخواست‌های تازه — نسخهٔ ۱.۴.۰",
+   "how": "دکمهٔ لینکِ نشانی در صفحهٔ مشتری، فروش و «ارسال و پیک»؛ صفحهٔ عمومیِ v.php?a= با دکمهٔ «موقعیتِ من».",
+   "files_changed": [
+    "inc/ship.php",
+    "v.php",
+    "pages/customer.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-ADDR و پرکردنِ لینک در مرورگر",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-17",
+   "status": "done",
+   "progress": 100,
+   "summary": "درخواست‌های تازه — نسخهٔ ۱.۴.۰",
+   "how": "جدولِ user_caps و فهرستِ همهٔ توانایی‌ها (با «همه/هیچ») در فرمِ کاربر؛ مدیرِ نقشِ admin هر توانایی تازه را خودکار می‌گیرد.",
+   "files_changed": [
+    "inc/auth.php",
+    "pages/users.php",
+    "inc/schema.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-UCAPS",
    "deviations": "",
    "remaining": "",
    "actual_days": 1

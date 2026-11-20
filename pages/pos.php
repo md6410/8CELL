@@ -15,7 +15,7 @@ $cust = $shift; ?>
     <div class="scan-view" id="scanBox" hidden style="margin-top:8px"><video id="scanVideo" playsinline muted autoplay></video><div class="scan-frame"></div><button type="button" class="btn sm" onclick="stopScan()">بستنِ دوربین</button></div><div class="msg muted" style="margin:6px 0;min-height:1.6em"></div>
     <div class="pick" style="position:relative"><input class="prod-q" placeholder="جست‌وجوی نامِ کالا…"></div></section>
   <section class="card"><div class="tw"><table class="tbl cart"><thead><tr><th>کالا</th><th>تعداد</th><th>فی</th><th>تخفیف</th><th>مبلغ</th><th></th></tr></thead><tbody></tbody></table></div>
-    <div class="actions"><span class="sums muted"></span><button class="btn sm docdisc" type="button">تخفیفِ فاکتور</button></div></section>
+    <div class="actions"><span class="sums muted"></span><button class="btn sm adjall" type="button" title="قیمتِ واحدِ همهٔ اقلام با هم کم/زیاد می‌شود">٪ همهٔ اقلام</button> <button class="btn sm docdisc" type="button">تخفیفِ فاکتور</button></div></section>
   <div class="done"></div>
 </div>
 <div>

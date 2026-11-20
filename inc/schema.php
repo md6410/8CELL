@@ -204,5 +204,28 @@ function pm_schema(): array {
         "ALTER TABLE products ADD COLUMN sstid VARCHAR(13) NULL",
         "CREATE TABLE IF NOT EXISTS moadian_log (id BIGINT AUTO_INCREMENT PRIMARY KEY, doc_id INT NULL, action VARCHAR(20) NOT NULL, http INT NULL, request MEDIUMTEXT NULL, response MEDIUMTEXT NULL, at DATETIME NOT NULL, KEY(doc_id))$E",
     ];
-    return [$m1, $m2, $m3, $m4, $m5, $m6];
+    $m7 = [ // نسیه و قولِ پرداخت، بله، چکِ مشتری، درصدِ کلِ سبد، پیک و ارسال، لینکِ نشانی، دسترسیِ تک‌کاربر، فهرستِ قیمتِ همکار
+        "CREATE TABLE IF NOT EXISTS user_caps (user_id INT NOT NULL, cap VARCHAR(60) NOT NULL, PRIMARY KEY(user_id, cap))$E",
+        "ALTER TABLE users ADD COLUMN bale_chat_id VARCHAR(40) NULL, ADD COLUMN bale_code VARCHAR(12) NULL",
+        "ALTER TABLE customers ADD COLUMN bale_chat_id VARCHAR(40) NULL, ADD COLUMN bale_code VARCHAR(12) NULL",
+        "CREATE TABLE IF NOT EXISTS credit_promises (id INT AUTO_INCREMENT PRIMARY KEY, customer_id INT NOT NULL, amount BIGINT NOT NULL, due_date DATE NOT NULL, note VARCHAR(300) NULL,
+            status VARCHAR(10) NOT NULL DEFAULT 'open', sms_customer TINYINT NOT NULL DEFAULT 0, bale_customer TINYINT NOT NULL DEFAULT 0, created_by INT NULL, created_at DATETIME NOT NULL,
+            pre_reminded_at DATETIME NULL, reminded_at DATETIME NULL, closed_at DATETIME NULL, KEY(customer_id), KEY(status, due_date))$E",
+        "CREATE TABLE IF NOT EXISTS notify_log (id BIGINT AUTO_INCREMENT PRIMARY KEY, event_key VARCHAR(120) NOT NULL, channel VARCHAR(10) NOT NULL, target VARCHAR(60) NOT NULL, ok TINYINT NOT NULL DEFAULT 0,
+            msg VARCHAR(500) NULL, text TEXT NULL, at DATETIME NOT NULL, UNIQUE KEY(event_key, channel, target), KEY(at))$E",
+        "ALTER TABLE cheques ADD COLUMN sayad VARCHAR(16) NULL, ADD COLUMN drawer VARCHAR(160) NULL, ADD COLUMN status_at DATETIME NULL, ADD COLUMN created_by INT NULL, ADD KEY(party_type, party_id)",
+        "ALTER TABLE carts ADD COLUMN adj_pct DECIMAL(6,2) NOT NULL DEFAULT 0",
+        "ALTER TABLE sales ADD COLUMN adj_pct DECIMAL(6,2) NOT NULL DEFAULT 0",
+        "CREATE TABLE IF NOT EXISTS couriers (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(120) NOT NULL, mobile VARCHAR(15) NULL, carrier VARCHAR(20) NOT NULL DEFAULT 'peyk', active TINYINT NOT NULL DEFAULT 1)$E",
+        "CREATE TABLE IF NOT EXISTS shipments (id INT AUTO_INCREMENT PRIMARY KEY, sale_id INT NULL, customer_id INT NULL, carrier VARCHAR(20) NOT NULL, courier_id INT NULL, tracking VARCHAR(80) NULL,
+            cost BIGINT NOT NULL DEFAULT 0, payer VARCHAR(10) NOT NULL DEFAULT 'shop', cod_amount BIGINT NOT NULL DEFAULT 0, status VARCHAR(12) NOT NULL DEFAULT 'registered', receiver_name VARCHAR(120) NULL,
+            receiver_mobile VARCHAR(15) NULL, address VARCHAR(500) NULL, postal_code VARCHAR(10) NULL, lat DECIMAL(10,7) NULL, lng DECIMAL(10,7) NULL, note VARCHAR(300) NULL, paid_from VARCHAR(10) NULL,
+            created_by INT NULL, created_at DATETIME NOT NULL, status_at DATETIME NULL, KEY(sale_id), KEY(status), KEY(created_at))$E",
+        "CREATE TABLE IF NOT EXISTS customer_addresses (id INT AUTO_INCREMENT PRIMARY KEY, customer_id INT NOT NULL, title VARCHAR(60) NULL, province VARCHAR(40) NULL, city VARCHAR(60) NULL,
+            address VARCHAR(500) NULL, plaque VARCHAR(20) NULL, unit VARCHAR(20) NULL, postal_code VARCHAR(10) NULL, lat DECIMAL(10,7) NULL, lng DECIMAL(10,7) NULL, receiver_name VARCHAR(120) NULL,
+            receiver_mobile VARCHAR(15) NULL, is_default TINYINT NOT NULL DEFAULT 0, source VARCHAR(10) NOT NULL DEFAULT 'staff', created_at DATETIME NOT NULL, KEY(customer_id))$E",
+        "CREATE TABLE IF NOT EXISTS partner_lists (id INT AUTO_INCREMENT PRIMARY KEY, doc_no VARCHAR(20) NOT NULL UNIQUE, customer_id INT NOT NULL, grade_id INT NULL, items INT NOT NULL DEFAULT 0,
+            created_by INT NULL, created_at DATETIME NOT NULL, KEY(customer_id))$E",
+    ];
+    return [$m1, $m2, $m3, $m4, $m5, $m6, $m7];
 }

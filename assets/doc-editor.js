@@ -26,6 +26,19 @@
   }
   rows.forEach(add); if (!rows.length) add();
   box.querySelector('.add').onclick = function () { add(); };
+  // درصد روی همهٔ اقلام: قیمتِ واحدِ هر ردیف عوض می‌شود (نه یک ردیفِ تخفیف/اضافهٔ جدا)
+  var adjB = document.createElement('button'); adjB.type = 'button'; adjB.className = 'btn sm'; adjB.textContent = '٪ همهٔ اقلام'; adjB.title = 'قیمتِ واحدِ همهٔ ردیف‌ها با هم کم/زیاد شود';
+  box.querySelector('.add').parentNode.insertBefore(adjB, box.querySelector('.add').nextSibling);
+  adjB.onclick = function () {
+    var p = prompt('درصدِ تغییرِ قیمتِ همهٔ اقلام (مثلاً ۵ یا ۳-):'); if (p === null) return; p = parseFloat(C.en(p).replace('٪', '').replace('%', '')); if (!p || p < -90 || p > 100) return;
+    var r = +(box.getAttribute('data-adjround') || 1000) || 1;
+    tb.querySelectorAll('tr').forEach(function (tr) {
+      var pr = tr.querySelector('[name$="[price]"]'), us = tr.querySelector('[name$="[usd]"]');
+      if (us && parseFloat(C.en(us.value))) us.value = (Math.round(parseFloat(C.en(us.value)) * (100 + p)) / 100).toFixed(2).replace(/\.?0+$/, '');
+      var v = C.toInt(pr.value); if (v) { var nv = Math.round(v * (100 + p) / 100 / r) * r || Math.round(v * (100 + p) / 100); pr.value = C.money(nv); }
+    });
+    calc(); C.toast('قیمتِ همهٔ ردیف‌ها ' + C.fa(String(p)) + '٪ ' + (p > 0 ? 'بیشتر' : 'کمتر') + ' شد');
+  };
   box.addEventListener('click', function (e) { if (e.target.classList.contains('del')) { e.target.closest('tr').remove(); calc(); } });
   var dl = document.createElement('datalist'); dl.id = 'docUnits'; dl.innerHTML = units.map(function (u) { return '<option value="' + esc(u) + '">'; }).join(''); document.body.appendChild(dl);
   var timer;

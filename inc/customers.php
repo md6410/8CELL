@@ -60,7 +60,8 @@ function wallet_balance(int $cid): int { return (int)val("SELECT COALESCE(SUM(am
 /** دریافت از مشتری (بدهیِ نسیه) یا شارژِ کیف پول */
 function customer_pay(int $cid, int $amount, string $method, string $target = 'credit', int $bankId = 0, string $note = ''): int {
     if ($amount <= 0) throw new UserError('مبلغ لازم است');
-    if (!in_array($method, ['cash', 'card', 'transfer', 'cheque'], true)) throw new UserError('روشِ دریافت نامعتبر');
+    if ($method === 'cheque') throw new UserError('چک را از فرمِ «دریافتِ چک» ثبت کنید تا سررسید و وصولش پیگیری شود');
+    if (!in_array($method, ['cash', 'card', 'transfer'], true)) throw new UserError('روشِ دریافت نامعتبر');
     $u = require_login(); $shift = shift_of_user((int)$u['id']);
     if ($method === 'cash' && !$shift) throw new UserError('برای دریافتِ نقد شیفتِ باز لازم است');
     if ($target === 'credit' && $amount > customer_balance($cid)) throw new UserError('مبلغ بیش از بدهیِ مشتری (' . fa_money(customer_balance($cid)) . ') است');
