@@ -5,7 +5,7 @@ if ($tab === 'scan') { ?>
 <section class="card" id="whscan"><header><h2>اسکنِ انباردار</h2></header><p class="muted">چاپِ برچسب موجودی نمی‌سازد؛ اسکنِ ورود می‌سازد. کدِ ۳۳ نویسه = یک دانه؛ کدِ ۲۷ نویسه = محموله (با تعداد).</p>
 <div class="grid" style="grid-template-columns:140px 1fr 90px auto"><select class="mode"><?php if (can('stock.in')) echo '<option value="stock_in">ورود</option>'; if (can('stock.out')) echo '<option value="stock_out">خروج</option>'; ?><option value="scan_lookup">فقط شناسایی</option></select>
 <input id="whScan" class="code scan-in" placeholder="اسکن و Enter…" autocomplete="off" data-scan-keep data-scan-confirm><input class="qty" value="۱"><button class="btn cam" type="button">📷</button></div>
-<div class="scan-msg msg" style="margin:6px 0;min-height:1.6em"></div><ol class="log"></ol></section>
+<div class="scan-view" id="scanBox" hidden style="margin-top:8px"><video id="scanVideo" playsinline muted autoplay></video><div class="scan-frame"></div><button type="button" class="btn sm" onclick="stopScan()">بستنِ دوربین</button></div><div class="scan-msg msg" style="margin:6px 0;min-height:1.6em"></div><ol class="log"></ol></section>
 <script src="assets/vendor/zxing.min.js" defer></script><script src="assets/scan-feedback.js" defer></script><script src="assets/scan-box.js" defer></script>
 <script>document.addEventListener('DOMContentLoaded',function(){var C=window.Cell,r=document.getElementById('whscan'),inp=r.querySelector('.code'),msg=r.querySelector('.msg');
 function go(code){var m=r.querySelector('.mode').value;var p=m==='scan_lookup'?C.api('scan_lookup',{code:code},'GET'):C.api(m,{code:code,qty:C.toInt(r.querySelector('.qty').value)||1});

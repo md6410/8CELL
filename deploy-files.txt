@@ -1,6 +1,4 @@
 # فایل‌هایی که به‌روزرسانیِ خودکار نصب می‌کند (هر خط یک مسیر). data/ و *.local.php هرگز.
-"Invora_\342\200\224_\330\257\331\201\330\252\330\261\331\220_\331\201\330\247\332\251\330\252\331\210\330\261.pm.json"
-"\331\201\330\261\331\210\330\264\332\257\330\247\331\207_\330\263\330\247\330\262_Weby.pm.json"
 .htaccess
 api.php
 assets/app.css
@@ -21,6 +19,7 @@ inc/auth.php
 inc/boot.php
 inc/calendar.php
 inc/captcha.php
+inc/coding.php
 inc/channels.php
 inc/customers.php
 inc/db.php

@@ -1,6 +1,6 @@
 {
  "schema": "weby-projectmanager/1",
- "exported_at": "2026-11-20T00:00:00.000Z",
+ "exported_at": "2026-11-20T09:00:00.000Z",
  "_instructions_for_ai": [
   "This file is the complete specification of a software/project plan exported from \"Project Manager\" (schema weby-projectmanager/1).",
   "HIERARCHY RULES (must be kept, the importer enforces them): kinds are area (بخش کلی), section (بخش), module (ماژول), task (کار). Top level (parent=null) contains ONLY areas. An area contains sections and modules. A section contains sections, modules and tasks. A module contains sections, modules (used inside it) and tasks. A task is the last level: it has NO children and exactly one input and one output. Areas, sections and modules may have several inputs/outputs. A dependency may name the ports it connects: {from,to,out:\"<output name of from>\",in:\"<input name of to>\"}. \"src_name\" marks a node copied from the shared module library - keep it.",
@@ -22751,7 +22751,24 @@
       "ta": null
      }
     ]
-   }
+   },
+   "tests": [
+    {
+     "ref": "X-HOLIDAY",
+     "title": "تجزیهٔ تعطیلات و لغوِ دستی",
+     "port": "تاریخِ امروز (تهران)",
+     "state": "پاسخِ persian-holidays-api",
+     "given": "تاسوعا ۴ تیر + ردیفِ دستیِ لغو",
+     "expect_kind": "true",
+     "expect": "تعطیل، سپس غیرِتعطیل",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": "normal",
+     "status": "pass"
+    }
+   ]
   },
   {
    "id": 2192,
@@ -23065,7 +23082,24 @@
       "ta": null
      }
     ]
-   }
+   },
+   "tests": [
+    {
+     "ref": "X-FX",
+     "title": "دو منبعِ نرخ با سنجشِ فاصله",
+     "port": "نرخِ دلار",
+     "state": "نوسان ۹۵٬۰۰۰ تومان، TGJU ۹۶۰٬۰۰۰ ریال",
+     "given": "fx_pick",
+     "expect_kind": "value",
+     "expect": "960000 ریال؛ با فاصلهٔ ۱۰ برابر صفر",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": "normal",
+     "status": "pass"
+    }
+   ]
   },
   {
    "id": 2194,
@@ -23118,7 +23152,7 @@
    "tech": "Weby: includes/hooks.php، features.php، themes.php، ext-install.php، modules/، themes/، ext/؛ docs/ساخت-ماژول-و-قالب.md.",
    "priority": 2,
    "status": "done",
-   "progress": 95,
+   "progress": 100,
    "est_days": 18,
    "final_days": null,
    "start_date": null,
@@ -30169,7 +30203,7 @@
     }
    ],
    "process": "اندروید فقط وقتی کد را پیشنهاد می‌دهد که آخرین خط دقیقاً «@www.example.ir #12345» باشد؛ دامنه باید مو‌به‌مو با دامنهٔ مرورگر یکی باشد.",
-   "tech": "otp_generate(mobile,purpose)، otp_cooldown_left، otp_webotp_host/suffix، جدول otp_codes.",
+   "tech": "otp_generate(mobile,purpose)، otp_cooldown_left، otp_webotp_host/suffix، جدول otp_codes. — 8CELL: پارامترهای NAME/CODE/VERIFICATIONCODE («#کد»)",
    "priority": 2,
    "status": "done",
    "progress": 100,
@@ -30804,7 +30838,7 @@
    "tech": "Weby: auth.php, passkey.php, captcha.php؛ Invora: auth.php, inc/passkey.php, inc/captcha.php, inc/sms.php.",
    "priority": 2,
    "status": "review",
-   "progress": 85,
+   "progress": 90,
    "est_days": 14,
    "final_days": null,
    "start_date": null,
@@ -35784,7 +35818,7 @@
     }
    ],
    "process": "کدِ خانواده بعد از ساخت عوض نمی‌شود چون برچسب و انبار به آن تکیه دارند؛ recode فقط با نگهبانِ «گردشِ واقعی».",
-   "tech": "product-recode.php؛ wh_variant_codes_backfill. — ترکیب ۲ نویسهٔ آخرِ کدِ ۲۰ نویسه است (inc/products.php: wh_item_code)",
+   "tech": "product-recode.php؛ wh_variant_codes_backfill. — ترکیب = محورِ VAR با کدِ ۲ تا ۶ نویسه (inc/coding.php: sku_build)",
    "priority": 2,
    "status": "done",
    "progress": 100,
@@ -40561,7 +40595,7 @@
     }
    ],
    "process": "کدِ پایه هویتِ محصول است؛ ترکیب‌ها (رنگ…) آن را به ۲۲ نویسه می‌رسانند و هر رنگ موجودی/محموله/برچسبِ جدا دارد.",
-   "tech": "wh_item_code_create(in)، WH_LEN_*، wh_suggest_cat_code، wh_cat_code_valid. — در 8CELL: دسته(۴)+نوع(۳)+شناسه(۱۱)+ترکیب(۲، «00»=بی‌ترکیب) = ۲۰؛ کدِ کامل ۲۷ = ۲۰ + فروشنده(۲) + مالکیت(۱) + انبار(۴)؛ کدِ دانه ۳۳ = ۲۷ + سریال(۶، مبنای ۳۶)",
+   "tech": "wh_item_code_create(in)، WH_LEN_*، wh_suggest_cat_code، wh_cat_code_valid. — در 8CELL (نسخهٔ ۱٫۱): کدگذاریِ v2 از Weby — خانواده TYPE-CAT-SEQ مثل SL-GENR-00042، ترکیب ‎-VAR.RED، محموله ‎/OWN.TH01، دانه ‎/000003؛ inc/coding.php",
    "priority": 2,
    "status": "done",
    "progress": 100,
@@ -40730,7 +40764,24 @@
       "ta": null
      }
     ]
-   }
+   },
+   "tests": [
+    {
+     "ref": "X-CODE",
+     "title": "کدگذاریِ v2: سطح با شمارشِ «/»",
+     "port": "کدِ محموله",
+     "state": "کالا با ترکیبِ RED در انبارِ TH01",
+     "given": "دانهٔ دوم",
+     "expect_kind": "value",
+     "expect": "SL-GENR-00001-VAR.RED/OWN.TH01/000002",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": "normal",
+     "status": "pass"
+    }
+   ]
   },
   {
    "id": 2269,
@@ -43550,8 +43601,8 @@
    "process": "",
    "tech": "کتابخانه‌ها: ZXing (MultiFormatReader) + BarcodeDetector مرورگر؛ jsQR فقط به‌عنوان جایگزینِ قدیمی (در Weby ZXing بهتر بود).\nقالب‌ها: QR_CODE, CODE_128, EAN_13, EAN_8, CODE_39, UPC_A, DATA_MATRIX. TRY_HARDER را روشن نکن (در آزمون خواندنِ QR را از ۲۵۰ms به >۱۰s رساند).\nفایل‌ها در Weby: assets/js/scan-box.js (دوربین+کدخوان)، scan-feedback.js (تیک/بوق)، scan-ajax.js (ارسالِ ajax)، includes/staff.php (scan_normalize, scan_lookup).\nکلیدهای تنظیم: staff_scan_sound (صدای کلِ فروشگاه)، کلیدِ localStorage برای دوربین و بی‌صدا.",
    "priority": 2,
-   "status": "review",
-   "progress": 85,
+   "status": "done",
+   "progress": 95,
    "est_days": 14,
    "final_days": null,
    "start_date": null,
@@ -49068,7 +49119,7 @@
    "tech": "Weby: includes/print.php، admin/print-stations.php، print-agent/agent.py (+ui.html). Invora: print-api.php، inc/print.php. جدول‌ها: print_stations, print_jobs. API: ?do=poll|status با X-Print-Token.",
    "priority": 2,
    "status": "review",
-   "progress": 80,
+   "progress": 90,
    "est_days": 16,
    "final_days": null,
    "start_date": null,
@@ -54214,6 +54265,21 @@
      "priority": 2,
      "status": "pass",
      "source": ""
+    },
+    {
+     "ref": "X-SERVICE",
+     "title": "خدمتِ بی‌انبار در صندوق",
+     "port": "ردیفِ تازه",
+     "state": "خدمتِ نصب ۵۰۰٬۰۰۰",
+     "given": "۲ عدد با کارت",
+     "expect_kind": "value",
+     "expect": "1000000",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": "normal",
+     "status": "pass"
     }
    ]
   },
@@ -117671,6 +117737,14 @@
    "body": "پیاده‌سازیِ فازهای ۱ تا ۳ (بخش‌های ۱ تا ۸) در مخزنِ md6410/8cell، شاخهٔ claude/kind-archimedes-bgxhmu. بخشِ ۹ (فروشگاهِ آنلاین) طبقِ خواستِ کاربر در این مرحله ساخته نشد؛ قراردادِ کانال، قلاب‌ها، API امضاشده و ماژولِ نمونه برای افزودنِ آن آماده است. ۴۸ آزمون پاس (۳۵ آزمونِ طرح + ۱۳ آزمونِ تازه)؛ ۳ آزمونِ فروشگاه skip.",
    "author": "Claude",
    "date": "2026-11-20 02:00:00"
+  },
+  {
+   "id": "new-log-2",
+   "node": null,
+   "kind": "decision",
+   "body": "نسخهٔ ۱٫۱: بخش‌های پیامک/OTP، Passkey، اسکنر، ایستگاهِ چاپ، کدگذاری (v2)، حقوق، تعطیلات و نرخ، سقفِ نقدِ کارمند، نگهبانِ قیمت، قیمتِ همکاری، صندوق و نصبِ زیپ با کدِ آزموده‌شدهٔ Weby هم‌سان شد. ۵۲ آزمون پاس، ۳ آزمونِ فروشگاه skip.",
+   "author": "Claude",
+   "date": "2026-11-20 09:00:00"
   }
  ],
  "files": [],
@@ -121022,6 +121096,221 @@
    "how_to_test": "نصب روی پایگاه‌دادهٔ خالی با install.php",
    "deviations": "گرهٔ تازه (در طرح نبود)",
    "remaining": ""
+  },
+  {
+   "node": 2212,
+   "status": "review",
+   "progress": 90,
+   "summary": "پیامک و OTP با روالِ Weby هم‌سان شد — بازبینی با کدِ آزموده‌شدهٔ Weby (مخزنِ md6410/weby)",
+   "how": "smsir_request همان تماسِ Weby (https://api.sms.ir/v1/send/verify، سربرگِ x-api-key و Expect:، IPv4، مهلتِ ۵/۸ ثانیه)؛ هر شکستِ پنل قابلِ تکرار؛ صفِ تلاشِ دوباره با cron (فاصلهٔ n×پایه، سقفِ ۶، نه OTP و نه آزمون)؛ فهرستِ ثابتِ پارامترهای دقیق (LINK، CODE، AMOUNT، FEE، DATE…)؛ OTP: پارامترهای NAME/CODE/VERIFICATIONCODE و WebOTP با «#کد» (دامنه ثابت در الگو)، ابطالِ کدهای قبلی، مهلتِ ۱۸۰ و فاصلهٔ ۹۰ ثانیه، bcrypt سبک، و بستنِ کد پس از ۵ تلاش.",
+   "files_changed": [
+    "inc/sms.php",
+    "inc/otp.php",
+    "index.php",
+    "pages/sms.php"
+   ],
+   "decisions": [
+    "قالبِ OTP در پنل: خطِ آخر «@دامنه #VERIFICATIONCODE#»"
+   ],
+   "how_to_test": "آزمونِ X-OTP؛ صفحهٔ پیامک ← ارسالِ آزمایشی",
+   "deviations": "پیش‌تر خطِ WebOTP «@host #code» به‌صورتِ پارامتر فرستاده می‌شد که با الگوی SMS.IR جور نبود.",
+   "remaining": "آزمون با کلیدِ واقعی.",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2226,
+   "status": "review",
+   "progress": 90,
+   "summary": "Passkey با سخت‌گیری‌های Weby — بازبینی با کدِ آزموده‌شدهٔ Weby (مخزنِ md6410/weby)",
+   "how": "مبدأ دقیقاً https همین دامنه (www و بی‌www)، سنجشِ الگوریتمِ COSE (‎-7 روی P-256، ‎-257)، شمارنده فقط وقتی هر دو مثبت‌اند (آیفون صفر می‌فرستد)، ذخیرهٔ بیشینهٔ شمارنده، ردِ حسابِ غیرفعال.",
+   "files_changed": [
+    "inc/passkey.php"
+   ],
+   "decisions": [],
+   "how_to_test": "«حسابِ من ← ساختنِ Passkey» روی https",
+   "deviations": "",
+   "remaining": "آزمون روی دستگاهِ واقعی.",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2281,
+   "status": "done",
+   "progress": 95,
+   "summary": "اسکنرِ دوربینِ Weby جایگزینِ نسخهٔ قبلی شد — بازبینی با کدِ آزموده‌شدهٔ Weby (مخزنِ md6410/weby)",
+   "how": "assets/scan-box.js و assets/scan-feedback.js عیناً از Weby (همان ZXing) با startScan/stopScan، data-scan-keep و data-scan-confirm؛ صندوق و انبار با رویدادِ ساختگیِ input از دوربین و Enter از اسکنرِ USB کار می‌کنند؛ تیکِ سبز/✕ قرمز پس از پاسخِ سرور.",
+   "files_changed": [
+    "assets/scan-box.js",
+    "assets/scan-feedback.js",
+    "assets/pos.js",
+    "pages/pos.php",
+    "pages/stock.php",
+    "assets/app.css"
+   ],
+   "decisions": [
+    "assets/scan.js حذف شد"
+   ],
+   "how_to_test": "Playwright با دوربینِ ساختگیِ کروم: کادر باز شد، کالا با کدِ دوربین به سبد رفت، خطای JS صفر.",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2305,
+   "status": "review",
+   "progress": 90,
+   "summary": "ایستگاهِ چاپ = همان WebyPrint — بازبینی با کدِ آزموده‌شدهٔ Weby (مخزنِ md6410/weby)",
+   "how": "print-api.php با پروتکلِ Weby (hello/claim/status، X-Print-Token)؛ پرینترها با کاغذِ پیش‌فرض یا چندکاغذی و رواداری؛ کارِ «گرفته‌شده» پس از ۵ دقیقه برمی‌گردد، «در حالِ چاپ» هرگز خودکار دوباره چاپ نمی‌شود، سقفِ سه تلاش؛ توکنِ کار (pjob/pk) فقط همان سند را باز می‌کند؛ برنامهٔ ایستگاهِ Weby بی‌تغییر در tools/print-agent.",
+   "files_changed": [
+    "print-api.php",
+    "inc/printq.php",
+    "inc/schema.php",
+    "index.php",
+    "pages/print.php",
+    "tools/print-agent/*",
+    "docs/print-agent.md"
+   ],
+   "decisions": [
+    "یک ایستگاه هم‌زمان برای Weby و 8CELL چاپ می‌کند"
+   ],
+   "how_to_test": "curl: hello، ردِ کاغذِ ناجور، claim، باز شدنِ صفحه با توکن (۲۰۰) و ردِ دستکاریِ id (۴۰۱)، status=done و ردِ بعدی.",
+   "deviations": "API قبلیِ agent_* حذف شد.",
+   "remaining": "آزمون با پرینترِ واقعی.",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2266,
+   "status": "done",
+   "progress": 100,
+   "summary": "کدگذاریِ v2 (Weby coding.php) — بازبینی با کدِ آزموده‌شدهٔ Weby (مخزنِ md6410/weby)",
+   "how": "کدِ خانواده TYPE-CAT-SEQ (SL-GENR-00042)، ترکیب با محور (‎-VAR.RED)، محموله «/فروشنده.انبار» و دانه «/000003»؛ اسکنر فقط «/» را می‌شمارد؛ کدِ فروشندهٔ خودِ فروشگاه OWN و امانی با کدِ تأمین‌کننده.",
+   "files_changed": [
+    "inc/coding.php",
+    "inc/products.php",
+    "inc/warehouse.php",
+    "inc/scan.php",
+    "inc/purchase.php",
+    "inc/schema.php"
+   ],
+   "decisions": [
+    "ستونِ مالکیت جدا ماند؛ کدِ فروشنده آن را در کد نشان می‌دهد"
+   ],
+   "how_to_test": "آزمون‌های X-CODE، X-DUP، X-WHOPS، 8C-POS-06",
+   "deviations": "طرح کدِ ثابتِ ۲۰/۲۷/۳۳ بود؛ Weby خودش از آن به v2 کوچ کرده بود و همان آمد.",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2388,
+   "status": "review",
+   "progress": 90,
+   "summary": "حقوق با قواعدِ قانونِ کارِ Weby — بازبینی با کدِ آزموده‌شدهٔ Weby (مخزنِ md6410/weby)",
+   "how": "کسرِ بی‌حقوق/غیبت با «پایه ÷ ۳۰»؛ نرخِ ساعت از روزهای کاریِ واقعیِ ماه (بی‌تعطیلات) × ۷٫۳۳ ساعت؛ حقِ اولاد = ۳ × حداقلِ مزدِ روزانه؛ مبنای بیمه = پایه + مسکن + اضافه‌کار؛ مالیات روی مازادِ معافیت؛ نرخ‌های ۱۴۰۵ پیش‌فرض و هشدارِ کمتر از حداقلِ مزد.",
+   "files_changed": [
+    "inc/hr.php",
+    "pages/payroll.php"
+   ],
+   "decisions": [
+    "مالیات یک‌پله روی مازادِ معافیت (همان Weby)"
+   ],
+   "how_to_test": "آزمونِ 8C-HR-02",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2188,
+   "status": "review",
+   "progress": 90,
+   "summary": "تعطیلات و نرخِ ارز با منابعِ Weby — بازبینی با کدِ آزموده‌شدهٔ Weby (مخزنِ md6410/weby)",
+   "how": "تعطیلات از persian-holidays-api با تجزیهٔ بردبار (فقط شمسی) و ردیفِ دستیِ «لغوِ تعطیلی»؛ نرخ از TGJU (بی‌کلید) و نوسان (با کلید) با سنجشِ فاصلهٔ دو منبع.",
+   "files_changed": [
+    "inc/calendar.php",
+    "pages/calendar.php",
+    "inc/schema.php"
+   ],
+   "decisions": [],
+   "how_to_test": "آزمون‌های X-HOLIDAY و X-FX با نمونهٔ پاسخ",
+   "deviations": "",
+   "remaining": "دسترسیِ شبکه در محیطِ ساخت بسته بود؛ روی سایتِ واقعی یک بار «دریافتِ خودکار» را بزنید.",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2378,
+   "status": "done",
+   "progress": 100,
+   "summary": "سقفِ نقدِ کارمند مثلِ Weby — بازبینی با کدِ آزموده‌شدهٔ Weby (مخزنِ md6410/weby)",
+   "how": "فقط دریافتِ نقد بسته می‌شود (کارت و صندوق آزاد)، تنخواه در سقف حساب نمی‌شود، کارمندِ بی‌پرونده سقف ندارد.",
+   "files_changed": [
+    "inc/staff.php",
+    "inc/pos.php"
+   ],
+   "decisions": [],
+   "how_to_test": "آزمونِ 8C-STF-03 (نقد رد، کارت پذیرفته)",
+   "deviations": "پیش‌تر بازکردنِ شیفت بسته می‌شد.",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2243,
+   "status": "done",
+   "progress": 100,
+   "summary": "نگهبانِ نوسانِ قیمت مثلِ Weby — بازبینی با کدِ آزموده‌شدهٔ Weby (مخزنِ md6410/weby)",
+   "how": "مقایسه با کمینه/بیشینهٔ بازهٔ pg_win ساعت؛ تغییرِ خودکار اعمال نمی‌شود و کالا غیرفعال می‌شود؛ ویرایشِ دستی تأییدِ صریح می‌خواهد.",
+   "files_changed": [
+    "inc/products.php",
+    "pages/product.php",
+    "inc/routes.php"
+   ],
+   "decisions": [],
+   "how_to_test": "آزمونِ X-GUARD",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2340,
+   "status": "review",
+   "progress": 85,
+   "summary": "قیمتِ همکاری مثلِ partner_pct در Weby — بازبینی با کدِ آزموده‌شدهٔ Weby (مخزنِ md6410/weby)",
+   "how": "سقفِ ۹۰٪، «بیشینه ≤ تکی» یعنی پله‌ای نیست، گردکردن به نزدیک‌ترین.",
+   "files_changed": [
+    "inc/partner.php"
+   ],
+   "decisions": [],
+   "how_to_test": "آزمونِ X-PARTNER",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2317,
+   "status": "done",
+   "progress": 100,
+   "summary": "صندوق با درس‌های qpos ِ Weby — بازبینی با کدِ آزموده‌شدهٔ Weby (مخزنِ md6410/weby)",
+   "how": "پیامِ وضعیتِ دانه، کالای/ترکیبِ غیرفعال، محمولهٔ خالی، کدِ فروش/فاکتور به‌جای کالا؛ خدمتِ بی‌انبار بی‌رزرو فروخته می‌شود.",
+   "files_changed": [
+    "inc/pos.php"
+   ],
+   "decisions": [],
+   "how_to_test": "آزمونِ X-SERVICE و 8C-POS-*",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2194,
+   "status": "done",
+   "progress": 100,
+   "summary": "نصبِ زیپ با قواعدِ امنیتیِ Weby — بازبینی با کدِ آزموده‌شدهٔ Weby (مخزنِ md6410/weby)",
+   "how": "مسیرِ امن (بی «..»، بک‌اسلش، بایتِ تهی، پروندهٔ پنهان)، فهرستِ پسوندهای مجاز/خطرناکِ Weby، حذفِ پوشه بی‌دنبال‌کردنِ پیوند.",
+   "files_changed": [
+    "inc/ext.php"
+   ],
+   "decisions": [],
+   "how_to_test": "آزمونِ دستیِ ext_safe_rel",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
   }
  ]
 }

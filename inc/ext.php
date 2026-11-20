@@ -47,14 +47,17 @@ function ext_load_one(array $m): void {
     catch (Throwable $e) { error_log('module ' . $m['id'] . ': ' . $e->getMessage()); }
 }
 
-/** امنیتِ نصب: مسیرِ نسبیِ امن و پسوندِ مجاز */
+/** امنیتِ نصب (همان Weby ext-install.php): مسیرِ نسبیِ بی‌خطر — نه مطلق، نه «..»، نه بک‌اسلش و بایتِ تهی (zip-slip)، نه پروندهٔ پنهان */
 function ext_safe_rel(string $p): ?string {
-    $p = str_replace('\\', '/', $p);
-    if ($p === '' || $p[0] === '/' || preg_match('#(^|/)\.\.(/|$)#', $p) || str_contains($p, ':') || str_contains($p, "\0")) return null;
-    return ltrim($p, './') === '' ? null : $p;
+    if ($p === '' || strlen($p) > 200 || str_contains($p, "\0") || str_contains($p, '\\') || $p[0] === '/' || preg_match('#^[A-Za-z]:#', $p)) return null;
+    foreach (explode('/', $p) as $seg) {
+        if ($seg === '' || $seg === '.' || $seg === '..' || $seg[0] === '.') return null;
+        if (!preg_match('/^[A-Za-z0-9_\-. ()\x{0600}-\x{06FF}\x{200C}]+$/u', $seg)) return null;
+    }
+    return $p;
 }
-function ext_allowed_ext(): array { return ['php', 'json', 'js', 'css', 'png', 'jpg', 'jpeg', 'svg', 'webp', 'gif', 'woff', 'woff2', 'ttf', 'txt', 'md', 'html']; }
-function ext_danger_ext(string $p): bool { return (bool)preg_match('/\.(phar|phtml|php\d|sh|exe|bat|cgi|pl|py|htaccess|ini)$/i', $p) || basename($p) === '.htaccess' || basename($p) === '.user.ini'; }
+function ext_allowed_ext(): array { return ['php', 'json', 'css', 'js', 'map', 'md', 'txt', 'html', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'avif', 'woff', 'woff2', 'ttf', 'otf', 'eot', 'mp4', 'webm']; }
+function ext_danger_ext(string $p): bool { return in_array(strtolower(pathinfo($p, PATHINFO_EXTENSION)), ['phtml', 'phar', 'php3', 'php4', 'php5', 'php7', 'php8', 'pht', 'phps', 'cgi', 'pl', 'py', 'sh', 'exe', 'asp', 'aspx', 'jsp', 'htaccess', 'ini', 'shtml'], true); }
 
 /** نصب از زیپ در data/ext/<kind>/<id> */
 function ext_install_zip(string $zipPath, string $kind = 'modules'): array {
@@ -85,7 +88,7 @@ function ext_install_zip(string $zipPath, string $kind = 'modules'): array {
     audit('ext', $manifest['id'], 'install', null, ['kind' => $kind, 'version' => $manifest['version'] ?? ''], 'نصبِ افزونه');
     return $manifest;
 }
-function ext_rrmdir(string $d): void { foreach (scandir($d) as $f) { if ($f === '.' || $f === '..') continue; is_dir("$d/$f") ? ext_rrmdir("$d/$f") : unlink("$d/$f"); } rmdir($d); }
+function ext_rrmdir(string $d): void { if (!is_dir($d) || is_link($d)) { if (is_file($d) || is_link($d)) @unlink($d); return; } foreach (scandir($d) ?: [] as $f) { if ($f === '.' || $f === '..') continue; ext_rrmdir("$d/$f"); } @rmdir($d); }
 
 /** امکاناتِ داخلیِ هسته (هر امکانِ تازه = یک ردیف با پیش‌فرضِ رفتارِ امروز) */
 function features_builtin(): array {

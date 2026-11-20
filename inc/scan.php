@@ -8,7 +8,7 @@ function scan_normalize(string $raw): string {
     if ($s === '') return '';
     if (preg_match('#^https?://#i', $s)) {
         $qs = []; parse_str((string)parse_url($s, PHP_URL_QUERY), $qs);
-        $pick = null; foreach (['k', 'c', 'code', 't', 'id', 'n'] as $k) if (!empty($qs[$k]) && is_string($qs[$k])) { $pick = $qs[$k]; break; }
+        $pick = null; foreach (['k', 'code', 'sku', 'serial', 'c'] as $k) if (!empty($qs[$k]) && is_string($qs[$k])) { $pick = $qs[$k]; break; }
         if ($pick === null) { $path = trim((string)parse_url($s, PHP_URL_PATH), '/'); $pick = $path === '' ? '' : basename($path); }
         $s = (string)$pick;
     }
