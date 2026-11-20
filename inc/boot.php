@@ -6,7 +6,7 @@ define('ROOT', dirname(__DIR__));
 if (!defined('DATA')) define('DATA', ROOT . '/data');
 require_once ROOT . '/inc/version.php';
 foreach (['util', 'jalali', 'db', 'schema', 'settings', 'audit', 'fiscal', 'hooks', 'ext', 'update', 'auth', 'captcha', 'sms', 'otp', 'passkey', 'calendar', 'products', 'warehouse',
-    'purchase', 'coding', 'scan', 'labels', 'printq', 'invoice', 'moadian', 'pos', 'partner', 'payreq', 'channels', 'staff', 'hr', 'customers', 'credit', 'notify', 'ship', 'ledger', 'accshare', 'reports', 'ui', 'routes'] as $__f) require_once ROOT . "/inc/$__f.php";
+    'purchase', 'coding', 'scan', 'labels', 'printq', 'invoice', 'warranty', 'moadian', 'pos', 'amend', 'partner', 'seller', 'payreq', 'channels', 'staff', 'hr', 'customers', 'credit', 'notify', 'ship', 'ledger', 'accshare', 'reports', 'ui', 'routes'] as $__f) require_once ROOT . "/inc/$__f.php";
 unset($__f);
 date_default_timezone_set('Asia/Tehran');
 mb_internal_encoding('UTF-8');

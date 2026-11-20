@@ -21,6 +21,9 @@ function sms_tpl_catalog(): array {
         'addr_link' => ['لینکِ ثبتِ نشانی (متنِ قالب: …/v.php?a=#TOKEN#)', ['NAME', 'TOKEN', 'LINK'], ['TOKEN']],
         'ship_track' => ['رهگیریِ ارسال', ['NAME', 'CARRIER', 'CODE'], ['CODE']],
         'partner_list' => ['لینکِ فهرستِ قیمتِ همکار', ['NAME', 'LINK'], ['LINK']],
+        'warranty_otp' => ['کدِ فعال‌سازیِ ضمانت', ['NAME', 'PRODUCT', 'CODE'], ['CODE']],
+        'warranty_on' => ['ضمانت فعال شد', ['NAME', 'PRODUCT', 'DATE', 'CODE'], ['DATE', 'CODE']],
+        'seller_invite' => ['دعوتِ فروشنده به پنل', ['NAME', 'LINK'], ['LINK']],
         'stock_loss_confirm' => ['تأییدِ ثبتِ ضرر', ['CODE'], ['CODE']],
     ]);
 }

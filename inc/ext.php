@@ -100,6 +100,7 @@ function features_builtin(): array {
         'otp_login' => ['ورود با کدِ پیامکی', 'ورود', true],
         'channels_api' => ['API کانال‌های فروش', 'کانال‌ها', true],
         'price_guard' => ['نگهبانِ نوسانِ قیمت', 'کالا', true],
+        'warranty' => ['ضمانتِ فروشگاه (دانه‌ای)', 'کالا', true],
     ];
 }
 function feature_on(string $k): bool { $f = features_builtin()[$k] ?? null; $v = setting('feature_' . $k); return $v === null ? (bool)($f[2] ?? false) : $v === '1'; }

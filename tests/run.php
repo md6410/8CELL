@@ -303,6 +303,47 @@ $T['X-UCAPS'] = function () { $u = mk_user('kar', 'کارمند', []); user_save
     $keep = err(fn() => user_save(['id' => $u, 'username' => 'kar', 'name' => 'کارمند', 'caps' => [], '_caps_form' => 1])); set_current_user(1); $L2 = user_load($u);
     return expect(can('ship.manage', $L) && can('settings.edit', $L) && !can('pos.use', $L) && !$deny['ok'] && $keep['ok'] && !can('ship.manage', $L2) && can('settings.edit', $L2) && can('reports.profit', $L2), implode(',', $L2['caps'])); };
 
+$T['X-WARRANTY'] = function () { set_vat(0); sms_tpls_on(['warranty_otp', 'warranty_on']); $t = warranty_type_save(['name' => 'طلایی', 'months' => 18]);
+    $p = product_save(['name' => 'گوشی', 'price' => 10000000, 'item_type' => 'SAL', 'serial' => 1, 'warranty_type_id' => $t]); $lot = wh_lot_ensure($p, null, 1); $us = wh_units_add((int)$lot['id'], 2, ['unit_cost' => 8000000]);
+    foreach ($us as $c) wh_stock_in($c, 1, []); unit_set_hologram($us[0], 'HG1234'); $dupH = err(fn() => unit_set_hologram($us[1], 'hg-1234'));
+    open_shift(1); $cid = customer_save(['kind' => 'person', 'name' => 'خریدار', 'mobile' => '09121234567']);
+    $s = sell([['product_id' => $p, 'qty' => 2, 'unit_ids' => array_map(fn($c) => (int)wh_unit_by_code($c)['id'], $us)]], [['method' => 'cash', 'amount' => 20000000]], ['customer_id' => $cid]);
+    $ws = rows("SELECT * FROM warranty_items WHERE sale_id=? ORDER BY id", [$s]); $w1 = (int)$ws[0]['id']; $w2 = (int)$ws[1]['id'];
+    $o = warranty_otp_send($w1, '09127654321', 'هدیه‌گیرنده'); $gap = err(fn() => warranty_otp_send($w1, '09127654321'));
+    $bad = err(fn() => warranty_activate($w1, ['code' => '00000'])); warranty_activate($w1, ['code' => $o['test_code']]); $a = warranty_get($w1);
+    $set = rows("SELECT * FROM users WHERE id=1"); $noHolo = err(fn() => warranty_activate($w2, ['no_code' => 1, 'mobile' => '09121234567']));
+    warranty_activate($w2, ['no_code' => 1, 'mobile' => '09121234567', 'hologram' => 'HG9999']);
+    $cl = warranty_claim_open($w1, 'صفحه خاموش'); warranty_claim_close($cl, 'تعویضِ برد', 1500000); $exp = (int)val("SELECT COALESCE(SUM(debit),0) FROM journal_lines WHERE account_id=?", [acc_id('warranty')]);
+    return_commit($s, [['sale_item_id' => (int)val("SELECT id FROM sale_items WHERE sale_id=?", [$s]), 'qty' => 1, 'units' => [$us[1]]]], 'خراب'); $w2r = warranty_get($w2);
+    warranty_cancel_reject($w2); upd('warranty_items', ['expires_at' => '2000-01-01'], 'id=?', [$w1]); $ex = warranty_expire_due();
+    return expect(count($ws) === 2 && $ws[0]['hologram'] === 'HG1234' && !$dupH['ok'] && $o['ok'] && !$gap['ok'] && !$bad['ok'] && $a['status'] === 'active' && $a['buyer_mobile'] === '09127654321' && substr($a['expires_at'], 0, 10) === date('Y-m-d', strtotime('+18 month'))
+        && !$noHolo['ok'] && $exp === 1500000 && $w2r['status'] === 'cancel' && warranty_get($w2)['status'] === 'active' && $ex === 1 && warranty_find('HG9999')[0]['id'] == $w2, json_encode([$a['status'], $w2r['status'], $noHolo['msg']], JSON_UNESCAPED_UNICODE)); };
+
+$T['X-OFFSET'] = function () { set_vat(0); $p = mk_product('گوشی', 5000000, 5, 3000000); $old = mk_product('گوشیِ کارکرده', 1, 0); open_shift(1);
+    $no = err(fn() => sell([['product_id' => $p, 'qty' => 1]], [['method' => 'cash', 'amount' => 3000000], ['method' => 'offset', 'amount' => 2000000]]));
+    $s = sell([['product_id' => $p, 'qty' => 1]], [['method' => 'cash', 'amount' => 3000000], ['method' => 'offset', 'amount' => 2000000]], ['offsets' => [['product_id' => $old, 'qty' => 1, 'value' => 2000000]]]);
+    $o = row("SELECT * FROM sale_offsets WHERE sale_id=?", [$s]); $tb = fn($k) => (int)val("SELECT COALESCE(SUM(debit-credit),0) FROM journal_lines WHERE account_id=?", [acc_id($k)]); $limbo = $tb('offset');
+    $stock0 = (int)val("SELECT COALESCE(SUM(qty),0) FROM stock_moves WHERE product_id=?", [$old]); offset_decide((int)$o['id'], 'stocked'); $stock1 = (int)val("SELECT COALESCE(SUM(qty),0) FROM stock_moves WHERE product_id=?", [$old]);
+    $exch = err(fn() => sell([['product_id' => $p, 'qty' => 1]], [['method' => 'exchange', 'amount' => 5000000]]));
+    return expect(!$no['ok'] && $o['title'] === 'گوشیِ کارکرده' && $limbo === 2000000 && $stock0 === 0 && $stock1 === 1 && $tb('offset') === 0 && !$exch['ok'], "limbo=$limbo stock=$stock1 " . $no['msg']); };
+$T['X-AMEND'] = function () { set_vat(0); $a = mk_product('قاب', 100000, 10); $b = mk_product('گلس', 250000, 10); $c = mk_product('شارژر', 30000, 10); open_shift(1);
+    $s = sell([['product_id' => $a, 'qty' => 2]], [['method' => 'cash', 'amount' => 200000]]); $item = (int)val("SELECT id FROM sale_items WHERE sale_id=?", [$s]);
+    $r1 = sale_amend($s, ['remove' => [['sale_item_id' => $item, 'qty' => 1]], 'add' => [['product_id' => $b, 'qty' => 1]], 'method' => 'cash']);
+    $exp1 = shift_expected((int)shift_of_user(1)['id'])['expected'];
+    $r2 = sale_amend($s, ['remove' => [['sale_item_id' => $item, 'qty' => 1]], 'add' => [['product_id' => $c, 'qty' => 1]], 'method' => 'cash']); $exp2 = shift_expected((int)shift_of_user(1)['id'])['expected'];
+    $tb = fn($k) => (int)val("SELECT COALESCE(SUM(debit-credit),0) FROM journal_lines WHERE account_id=?", [acc_id($k)]); $stockA = (int)val("SELECT COALESCE(SUM(qty),0) FROM stock_moves WHERE product_id=?", [$a]);
+    $sid = mk_user('sel2', 'دیگر', ['seller']); set_current_user($sid); $other = err(fn() => sale_amend($s, ['add' => [['product_id' => $c, 'qty' => 1]]])); set_current_user(1);
+    upd('sales', ['at' => date('Y-m-d H:i:s', time() - 30 * 3600)], 'id=?', [$s]); set_current_user($sid); $late = amend_gate(row("SELECT * FROM sales WHERE id=?", [$s])); set_current_user(1);
+    return expect($r1['diff'] === 150000 && $exp1 === 350000 && $r2['diff'] === -70000 && $exp2 === 280000 && $tb('exchange') === 0 && $stockA === 10 && !$other['ok'] && !$late[0] && (int)val("SELECT amend_of FROM sales WHERE id=?", [$r1['new_sale_id']]) === $s, "d1={$r1['diff']} cash1=$exp1 d2={$r2['diff']} cash2=$exp2 exch=" . $tb('exchange') . ' ' . $other['msg']); };
+
+$T['X-SELLER'] = function () { set_vat(0); $sid = supplier_save(['name' => 'فروشندهٔ امانی', 'mobile' => '09121110000', 'seller_code' => 'AB']); $p = mk_product('هندزفری', 500000, 0);
+    $wh = (int)val("SELECT id FROM warehouses LIMIT 1"); purchase_invoice_commit(['supplier_id' => $sid, 'warehouse_id' => $wh, 'direct_in' => 1, 'consign' => 1, 'items' => [['product_id' => $p, 'qty' => 5, 'unit_price' => 300000]]]);
+    open_shift(1); sell([['product_id' => $p, 'qty' => 2]], [['method' => 'cash', 'amount' => 1000000]]); $pay = supplier_pay(['supplier_id' => $sid, 'amount' => 600000, 'method' => 'cash']);
+    $t = seller_invite_token($sid); $bad = seller_invite_parse(substr($t, 0, -1) . (substr($t, -1) === 'a' ? 'b' : 'a')); $uid = seller_join($sid, 'seller1', 'pass12345');
+    $u = user_load($uid); set_current_user($uid); $st = seller_stock($sid); $sold = seller_sold($sid, date('Y-m-d', strtotime('-1 day')), today()); seller_pay_confirm($pay); $stmt = seller_statement($sid);
+    $deny = !can('pos.use') && !can('reports.dashboard') && can('seller.portal'); $other = supplier_save(['name' => 'دیگری']); set_current_user(1);
+    return expect($bad === null && seller_invite_parse($t) === $sid && $deny && (int)$st[0]['on_hand'] === 3 && (int)$sold[0]['qty'] === 2 && $stmt[0]['bal'] === 900000 && (bool)val("SELECT confirmed_at FROM supplier_payments WHERE id=?", [$pay]), json_encode([$st[0]['on_hand'] ?? null, $stmt[0]['bal'] ?? null])); };
+
 $res = []; $pass = 0; $fail = 0; $skip = 0;
 foreach ($T as $ref => $fn) {
     try { reset_db(); [$st, $got] = $fn(); } catch (Throwable $e) { $st = 'fail'; $got = get_class($e) . ': ' . $e->getMessage() . ' @' . basename($e->getFile()) . ':' . $e->getLine(); }

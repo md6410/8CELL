@@ -34,7 +34,7 @@ function product_save(array $in): int {
     $d = ['name' => $name, 'category_id' => $cat, 'brand' => trim((string)($in['brand'] ?? '')) ?: null, 'item_type' => $type, 'unit_id' => (int)($in['unit_id'] ?? 0) ?: null,
         'serial' => empty($in['serial']) ? 0 : 1, 'barcode' => trim(en_num((string)($in['barcode'] ?? ''))) ?: null, 'cost_extra' => to_int($in['cost_extra'] ?? 0),
         'seller_share_pct' => to_float($in['seller_share_pct'] ?? 0), 'price_guard_pct' => to_float($in['price_guard_pct'] ?? 0), 'description' => (string)($in['description'] ?? ''),
-        'specs' => (string)($in['specs'] ?? ''), 'warranty' => trim((string)($in['warranty'] ?? '')) ?: null, 'weight_g' => to_int($in['weight_g'] ?? 0) ?: null,
+        'specs' => (string)($in['specs'] ?? ''), 'warranty' => trim((string)($in['warranty'] ?? '')) ?: null, 'warranty_type_id' => !empty($in['serial']) && (int)($in['warranty_type_id'] ?? 0) ? (int)$in['warranty_type_id'] : null, 'weight_g' => to_int($in['weight_g'] ?? 0) ?: null,
         'dims' => trim((string)($in['dims'] ?? '')) ?: null, 'image' => trim((string)($in['image'] ?? '')) ?: null, 'min_stock' => to_int($in['min_stock'] ?? 0), 'sstid' => preg_match('/^\d{13}$/', $sst = preg_replace('/\D/', '', en_num((string)($in['sstid'] ?? '')))) ? $sst : null, 'active' => empty($in['inactive']) ? 1 : 0];
     $sale = trim((string)($in['sale_price'] ?? ''));
     $d['sale_price'] = $sale === '' ? null : to_int($sale);

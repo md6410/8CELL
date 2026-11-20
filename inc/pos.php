@@ -2,7 +2,7 @@
 // فروشِ حضوری: شیفت، سبد و اسکن، قیمتِ گریدی، پرداختِ چندگانه، ثبتِ اتمی (sale_commit)، مرجوعی و بستنِ شیفت
 declare(strict_types=1);
 
-function pay_methods(): array { return apply_filters('payment_methods', ['cash' => 'نقد', 'card' => 'کارت‌خوان', 'transfer' => 'کارت‌به‌کارت', 'credit' => 'نسیه', 'wallet' => 'کیف پول', 'cheque' => 'چک', 'channel' => 'دریافتِ کانال']); }
+function pay_methods(): array { return apply_filters('payment_methods', ['cash' => 'نقد', 'card' => 'کارت‌خوان', 'transfer' => 'کارت‌به‌کارت', 'credit' => 'نسیه', 'wallet' => 'کیف پول', 'cheque' => 'چک', 'channel' => 'دریافتِ کانال', 'offset' => 'تهاترِ کالا', 'exchange' => 'جابه‌جایی (اصلاحِ فروش)']); }
 
 // ── شیفت
 function shift_current(int $cashboxId): ?array { return row("SELECT * FROM shifts WHERE cashbox_id=? AND status='open'", [$cashboxId]); }
@@ -237,6 +237,11 @@ function sale_commit(array $in): int {
         $in['payments'] = [['method' => 'credit', 'amount' => $calc['total']]]; $in['defer_stock'] = 1;
     }
     $plan = pay_plan_validate($calc['total'], (array)($in['payments'] ?? []));
+    $offs = []; $offSum = 0; foreach ($plan['payments'] as $p) { if ($p['method'] === 'exchange' && empty($in['amend_of'])) throw new UserError('جابه‌جایی فقط از «اصلاحِ فروش»'); if ($p['method'] === 'offset') $offSum += $p['amount']; }
+    foreach ((array)($in['offsets'] ?? []) as $o) { $v = to_int($o['value'] ?? 0); $q = max(1, to_int($o['qty'] ?? 1)); $t = trim((string)($o['title'] ?? '')); $opid = (int)($o['product_id'] ?? 0) ?: null;
+        if ($opid) $t = $t ?: (string)val("SELECT name FROM products WHERE id=?", [$opid]); if ($v <= 0 || $t === '') throw new UserError('هر قلمِ تهاتر نام و ارزش (قیمتِ خرید) می‌خواهد'); $offs[] = ['product_id' => $opid, 'variant_id' => (int)($o['variant_id'] ?? 0) ?: null, 'title' => mb_cut($t, 250), 'qty' => $q, 'value' => $v]; }
+    if (array_sum(array_column($offs, 'value')) !== $offSum) throw new UserError('جمعِ تهاتر با اقلامِ تهاتری برابر نیست');
+    if ($offs && !$channel && !can('pos.offset', $u)) throw new UserError('تهاتر در فروش دسترسیِ جدا می‌خواهد', 403);
     if (!$channel && $u) foreach ($plan['payments'] as $p) if ($p['method'] === 'cash') { $cc = stacc_can_take_cash((int)$u['id']); if (!$cc['ok']) throw new UserError($cc['msg']); break; }
     $credit = 0; $wallet = 0; foreach ($plan['payments'] as $p) { if ($p['method'] === 'credit') $credit += $p['amount']; if ($p['method'] === 'wallet') $wallet += $p['amount']; }
     if (($credit || $wallet) && !$cust) throw new UserError('برای نسیه یا کیف پول مشتری را انتخاب کنید');
@@ -248,12 +253,12 @@ function sale_commit(array $in): int {
     if ($wallet && $wallet > wallet_balance($cust)) throw new UserError('اعتبارِ کیف پول کافی نیست');
     $defer = !empty($in['defer_stock']);
     try {
-        $saleId = tx(function () use ($in, $token, $channel, $shift, $cb, $branch, $wh, $seller, $cust, $calc, $meta, $plan, $credit, $wallet, $defer, $d, $u, $xfer, $adj) {
+        $saleId = tx(function () use ($in, $token, $channel, $shift, $cb, $branch, $wh, $seller, $cust, $calc, $meta, $plan, $credit, $wallet, $defer, $d, $u, $xfer, $adj, $offs) {
             $jy = substr(jdate($d, false, false), 0, 4);
             $sid = ins('sales', ['cart_token' => $token, 'channel_id' => $channel['id'] ?? null, 'branch_id' => $branch, 'cashbox_id' => $cb['id'] ?? null, 'shift_id' => $shift['id'] ?? null, 'warehouse_id' => $wh,
                 'seller_id' => $seller, 'customer_id' => $cust, 'partner_mode' => $in['partner_mode'] ?? null, 'ship_to' => !empty($in['ship_to']) ? json_encode($in['ship_to'], JSON_UNESCAPED_UNICODE) : null,
                 'd' => $d, 'at' => now(), 'subtotal' => $calc['sub'], 'line_disc' => $calc['lineDisc'], 'doc_disc' => $calc['docDisc'], 'tax' => $calc['vat'], 'round_adj' => $calc['roundAdj'], 'total' => $calc['total'],
-                'channel_fee' => (int)($in['channel_fee'] ?? 0), 'adj_pct' => $adj, 'fulfil' => $defer ? ($xfer ? 'await_pay' : 'pending') : 'done', 'note' => mb_cut((string)($in['note'] ?? ''), 400) ?: null]);
+                'channel_fee' => (int)($in['channel_fee'] ?? 0), 'adj_pct' => $adj, 'amend_of' => (int)($in['amend_of'] ?? 0) ?: null, 'fulfil' => $defer ? ($xfer ? 'await_pay' : 'pending') : 'done', 'note' => mb_cut((string)($in['note'] ?? ''), 400) ?: null]);
             upd('sales', ['number' => ($channel ? 'C' : 'S') . $jy . '-' . sprintf('%05d', doc_seq_next('sale-' . $jy))], 'id=?', [$sid]);
             $cartId = !empty($in['cart_id']) ? (int)$in['cart_id'] : null; $totalCost = 0;
             foreach ($calc['lines'] as $k => $l) {
@@ -277,6 +282,7 @@ function sale_commit(array $in): int {
             }
             if ($cartId) { q("DELETE FROM stock_reservations WHERE cart_id=?", [$cartId]); upd('carts', ['status' => 'done'], 'id=?', [$cartId]); }
             upd('sales', ['cost' => $totalCost], 'id=?', [$sid]);
+            foreach ($offs as $o) ins('sale_offsets', $o + ['sale_id' => $sid, 'created_at' => now()]);
             foreach ($plan['payments'] as $p) ins('receipts', ['sale_id' => $sid, 'shift_id' => $shift['id'] ?? null, 'cashbox_id' => $cb['id'] ?? null, 'method' => $p['method'], 'amount' => $p['amount'], 'ref' => $p['ref'] ?: null, 'customer_id' => $cust, 'at' => now()]);
             if ($credit) customer_ledger_add($cust, $credit, 'sale_credit', 'sale', $sid, 'نسیهٔ فروش', !empty($in['due']) ? jparse($in['due']) : null);
             if ($wallet) wallet_add($cust, -$wallet, 'spend', 'sale', $sid, 'پرداخت از کیف پول');
@@ -291,6 +297,7 @@ function sale_commit(array $in): int {
         throw $e;
     }
     do_action('sale_committed', $saleId);
+    if (empty($in['defer_stock'])) { try { warranty_from_sale($saleId); } catch (Throwable $e) { error_log('warranty: ' . $e->getMessage()); } }
     if ($xfer) { try { payreq_create($saleId, ['deadline' => $in['due'] ?? null]); } catch (Throwable $e) { error_log('payreq: ' . $e->getMessage()); } }
     if (($in['partner_mode'] ?? '') === 'hold') upd('sales', ['fulfil' => 'hold'], 'id=?', [$saleId]);
     if (($in['partner_mode'] ?? '') === 'ship') { try { pship_sms_route($saleId); } catch (Throwable $e) { error_log('pship: ' . $e->getMessage()); } }
@@ -308,7 +315,7 @@ function pos_checkout(int $cartId, array $payments, array $opt = []): array {
         $j = $byKey[$k]; $lines[$j]['qty'] += (int)$i['qty']; $lines[$j]['disc'] += (int)$i['disc']; if ($i['unit_id']) $lines[$j]['unit_ids'][] = (int)$i['unit_id'];
     }
     $sid = sale_commit(['cart_token' => $c['token'], 'cart_id' => $cartId, 'shift_id' => $c['shift_id'], 'customer_id' => $c['customer_id'], 'doc_disc' => (int)$c['doc_disc'], 'adj_pct' => (float)$c['adj_pct'], 'lines' => $lines,
-        'payments' => $payments, 'note' => $c['note'], 'due' => $opt['due'] ?? null, 'partner_mode' => $opt['partner_mode'] ?? null, 'ship_to' => $opt['ship_to'] ?? null, 'defer_stock' => !empty($opt['defer_stock'])]);
+        'payments' => $payments, 'offsets' => (array)($opt['offsets'] ?? []), 'note' => $c['note'], 'due' => $opt['due'] ?? null, 'partner_mode' => $opt['partner_mode'] ?? null, 'ship_to' => $opt['ship_to'] ?? null, 'defer_stock' => !empty($opt['defer_stock'])]);
     $s = row("SELECT number, total FROM sales WHERE id=?", [$sid]);
     $change = pay_plan_validate((int)$s['total'], $payments)['change'];
     return ['sale_id' => $sid, 'number' => $s['number'], 'change' => $change];
@@ -327,13 +334,14 @@ function sale_get(int $id): ?array {
 function return_commit(int $saleId, array $items, string $reason, string $method = 'cash'): int {
     $u = require_login();
     if (mb_strlen(trim($reason)) < 2) throw new UserError('دلیلِ برگشت لازم است');
-    if (!in_array($method, ['cash', 'card', 'transfer', 'credit', 'wallet'], true)) throw new UserError('روشِ بازپرداختِ نامعتبر');
+    if (!in_array($method, ['cash', 'card', 'transfer', 'credit', 'wallet', 'exchange'], true)) throw new UserError('روشِ بازپرداختِ نامعتبر');
     $d = today(); fiscal_assert_open($d);
     return tx(function () use ($saleId, $items, $reason, $method, $u, $d) {
         $s = row("SELECT * FROM sales WHERE id=? FOR UPDATE", [$saleId]); if (!$s) throw new UserError('فروش یافت نشد');
         if ($s['fulfil'] !== 'done' && $s['fulfil'] !== 'shipped') throw new UserError('این سفارش هنوز ارسال نشده؛ آن را از صفِ خروج بازنشانی کنید');
         $shift = shift_of_user((int)$u['id']);
         if ($method === 'cash' && !$shift) throw new UserError('برای بازپرداختِ نقد شیفتِ باز لازم است');
+        if ($method === 'exchange' && empty($GLOBALS['__amend'])) throw new UserError('جابه‌جایی فقط از «اصلاحِ فروش»');
         if (in_array($method, ['credit', 'wallet'], true) && !$s['customer_id']) throw new UserError('فروشِ گذری به حسابِ مشتری برنمی‌گردد');
         $rid = ins('sale_returns', ['sale_id' => $saleId, 'shift_id' => $shift['id'] ?? null, 'user_id' => $u['id'], 'reason' => mb_cut(trim($reason), 400), 'amount' => 0, 'refund_method' => $method, 'd' => $d, 'at' => now()]);
         $amount = 0; $tax = 0; $cost = 0; $any = false;
@@ -354,6 +362,7 @@ function return_commit(int $saleId, array $items, string $reason, string $method
                 if ($lotId) wh_stock_in((string)val("SELECT code FROM lots WHERE id=?", [$lotId]), $q, ['kind' => 'return', 'unit_cost' => intdiv($c, max(1, $q)), 'ref_type' => 'return', 'ref_id' => $rid]);
             }
             ins('sale_return_items', ['return_id' => $rid, 'sale_item_id' => $it['id'], 'qty' => $q, 'amount' => $net, 'tax' => $t, 'cost' => $c, 'units' => json_encode($back)]);
+            if ($back) warranty_on_return($back, $reason);
             q("UPDATE sale_items SET returned_qty=returned_qty+? WHERE id=?", [$q, $it['id']]);
             commission_reverse((int)$it['id'], $q, $rid);
             $amount += $net; $tax += $t; $cost += $c; $any = true;
@@ -363,7 +372,7 @@ function return_commit(int $saleId, array $items, string $reason, string $method
         upd('sale_returns', ['amount' => $amount, 'tax' => $tax, 'cost' => $cost], 'id=?', [$rid]);
         if ($method === 'credit') customer_ledger_add((int)$s['customer_id'], -$refund, 'return', 'return', $rid, 'برگشت از فروشِ ' . $s['number']);
         elseif ($method === 'wallet') wallet_add((int)$s['customer_id'], $refund, 'refund', 'return', $rid, 'برگشت از فروشِ ' . $s['number']);
-        else ins('receipts', ['return_id' => $rid, 'sale_id' => $saleId, 'shift_id' => $shift['id'] ?? null, 'cashbox_id' => $shift['cashbox_id'] ?? null, 'method' => $method, 'amount' => -$refund, 'customer_id' => $s['customer_id'], 'at' => now()]);
+        elseif ($method !== 'exchange') ins('receipts', ['return_id' => $rid, 'sale_id' => $saleId, 'shift_id' => $shift['id'] ?? null, 'cashbox_id' => $shift['cashbox_id'] ?? null, 'method' => $method, 'amount' => -$refund, 'customer_id' => $s['customer_id'], 'at' => now()]);
         ledger_post('return', $rid);
         if ($s['channel_id']) channel_ledger_add((int)$s['channel_id'], -$refund, 'refund', 'return', $rid, 'برگشتِ ' . $s['number']);
         audit('sale_returns', $rid, 'create', null, ['sale' => $s['number'], 'amount' => $refund, 'reason' => $reason], 'مرجوعی');

@@ -22,7 +22,7 @@ $cust = $shift; ?>
   <section class="card"><header><h2>مشتری</h2><button class="btn sm cust-new" type="button">+ تازه</button></header><div style="position:relative"><input class="cust-q" placeholder="نام یا موبایل…"></div><p class="cust-info"></p>
     <div class="partner" style="display:none"><label class="field"><span>نوعِ سفارشِ همکار</span><select class="pmode"><?php foreach (partner_modes() as $k => $t) echo '<option value="' . h($k) . '">' . h($t) . '</option>'; ?></select></label></div>
     <label class="field"><span>سررسیدِ نسیه (اختیاری)</span><input class="due jd" placeholder="۱۴۰۵/۰۹/۳۰"></label></section>
-  <section class="card"><div class="tot">۰</div><h2 style="margin-top:10px">دریافت</h2><div class="pays"></div><button class="btn sm addpay" type="button">+ روشِ دیگر</button><div class="remain"></div>
+  <section class="card"><div class="tot">۰</div><h2 style="margin-top:10px">دریافت</h2><div class="pays"></div><button class="btn sm addpay" type="button">+ روشِ دیگر</button><?php if (can('pos.offset')): ?> <button class="btn sm offadd" type="button" title="کالایی که مشتری به‌جای بخشی از پول می‌دهد (به قیمتِ خرید)">+ تهاترِ کالا</button><div class="offs muted"></div><?php endif; ?><div class="remain"></div>
     <div class="actions"><button class="btn primary big checkout" type="button">ثبتِ فروش</button></div></section>
   <section class="card"><p class="muted">شیفتِ <?= fa_num($shift['id']) ?> · <?= h($shift['cbname']) ?> · از <?= jdate($shift['opened_at'], true) ?></p><a class="btn" href="<?= h(page_url('shifts')) ?>">بستنِ شیفت</a></section>
 </div></div>

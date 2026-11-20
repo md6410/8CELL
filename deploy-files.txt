@@ -17,6 +17,7 @@ assets/vendor/zxing.min.js
 config.sample.php
 inc/.htaccess
 inc/accshare.php
+inc/amend.php
 inc/audit.php
 inc/auth.php
 inc/boot.php
@@ -49,6 +50,7 @@ inc/reports.php
 inc/routes.php
 inc/scan.php
 inc/schema.php
+inc/seller.php
 inc/settings.php
 inc/ship.php
 inc/sms.php
@@ -58,6 +60,7 @@ inc/update.php
 inc/util.php
 inc/version.php
 inc/warehouse.php
+inc/warranty.php
 index.php
 install.php
 modules/hello/main.php
@@ -90,6 +93,7 @@ pages/login.php
 pages/losses.php
 pages/me.php
 pages/notify.php
+pages/offsets.php
 pages/partner_prices.php
 pages/partners.php
 pages/payreqs.php
@@ -109,6 +113,7 @@ pages/purchase.php
 pages/reports.php
 pages/sale.php
 pages/sales.php
+pages/seller.php
 pages/settings.php
 pages/shifts.php
 pages/shipments.php
@@ -119,6 +124,8 @@ pages/suppliers.php
 pages/trends.php
 pages/update.php
 pages/users.php
+pages/warranty.php
+pages/warranty_view.php
 pages/whops.php
 parts/.htaccess
 parts/footer.php

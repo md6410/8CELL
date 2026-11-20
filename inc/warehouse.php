@@ -225,6 +225,7 @@ function whops_order_close(int $saleId): array {
         ledger_post_cogs($saleId);
         commission_for_sale($saleId);
         audit('sales', $saleId, 'ship', ['fulfil' => $s['fulfil']], ['fulfil' => 'shipped'], 'بستنِ سفارش');
+        warranty_from_sale($saleId);
         do_action('sale_status_changed', $saleId, 'shipped');
         return ['ok' => true, 'cost' => $cost];
     });

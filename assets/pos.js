@@ -51,16 +51,27 @@
   C.productPicker($('.prod-q'), function (p, v) { $('.prod-q').value = ''; call('cart_add', { product_id: p.id, variant_id: v ? v.id : 0, qty: C.toInt($('.qty').value) || 1 }); });
   function addPay(m, a) {
     var d = document.createElement('div'); d.className = 'pay-row';
-    d.innerHTML = '<select class="pm">' + Object.keys(methods).filter(function (k) { return k !== 'channel'; }).map(function (k) { return '<option value="' + k + '"' + (k === m ? ' selected' : '') + '>' + methods[k] + '</option>'; }).join('') + '</select><input class="pa money" value="' + (a ? C.money(a) : '') + '" placeholder="مبلغ"><button type="button" class="btn sm fill" title="باقی‌مانده">=</button>';
+    d.innerHTML = '<select class="pm">' + Object.keys(methods).filter(function (k) { return k !== 'channel' && k !== 'offset' && k !== 'exchange'; }).map(function (k) { return '<option value="' + k + '"' + (k === m ? ' selected' : '') + '>' + methods[k] + '</option>'; }).join('') + '</select><input class="pa money" value="' + (a ? C.money(a) : '') + '" placeholder="مبلغ"><button type="button" class="btn sm fill" title="باقی‌مانده">=</button>';
     $('.pays').appendChild(d); d.querySelector('.pa').addEventListener('input', remain); d.querySelector('.pm').addEventListener('change', remain);
   }
+  var offs = [];
+  function offSum() { var s = 0; offs.forEach(function (o) { s += o.value; }); return s; }
+  function drawOffs() { var el = $('.offs'); if (!el) return; el.innerHTML = offs.map(function (o, i) { return '<div>تهاتر: ' + C.esc(o.title) + ' × ' + C.fa(String(o.qty)) + ' = <b>' + C.money(o.value) + '</b> <button type="button" class="btn sm offdel" data-i="' + i + '">×</button></div>'; }).join(''); remain(); }
+  if ($('.offadd')) {
+    var oq = document.createElement('input'); oq.className = 'offq'; oq.placeholder = 'کالای تهاتری (جست‌وجو)…'; oq.style.display = 'none'; $('.offadd').parentNode.insertBefore(oq, $('.offs'));
+    $('.offadd').addEventListener('click', function () { oq.style.display = ''; oq.focus(); });
+    function addOff(pid, vid, title, cost) { var q = parseInt(C.en(prompt('تعداد:', '1') || '0'), 10); if (!q) return; var v = C.toInt(prompt('ارزشِ کل به قیمتِ خرید (ریال):', cost ? C.money(cost * q) : '') || '0'); if (!v) return; offs.push({ product_id: pid || '', variant_id: vid || '', title: title, qty: q, value: v }); oq.value = ''; oq.style.display = 'none'; drawOffs(); }
+    C.productPicker(oq, function (p, v) { C.api('offset_cost', { product_id: p.id, variant_id: v ? v.id : '' }).then(function (r) { addOff(p.id, v ? v.id : '', p.name + (v ? ' — ' + v.title : ''), r.cost); }); });
+    oq.addEventListener('keydown', function (e) { if (e.key === 'Enter' && oq.value.trim()) { e.preventDefault(); addOff('', '', oq.value.trim(), 0); } });
+    root.addEventListener('click', function (e) { if (e.target.classList.contains('offdel')) { offs.splice(+e.target.getAttribute('data-i'), 1); drawOffs(); } });
+  }
   function pays() { var o = []; root.querySelectorAll('.pay-row').forEach(function (r) { var a = C.toInt(r.querySelector('.pa').value); if (a) o.push({ method: r.querySelector('.pm').value, amount: a }); }); return o; }
-  function left() { var tot = (V && V.totals.total) || 0, s = 0; pays().forEach(function (p) { s += p.amount; }); return tot - s; }
+  function left() { var tot = (V && V.totals.total) || 0, s = offSum(); pays().forEach(function (p) { s += p.amount; }); return tot - s; }
   function remain() { var r = left(), el = $('.remain'); if (r > 0) { el.textContent = C.money(r) + ' ریال باقی‌مانده'; el.className = 'remain bad'; } else if (r < 0) { el.textContent = 'باقیِ پولِ نقد: ' + C.money(-r); el.className = 'remain good'; } else { el.textContent = 'جمع برابر است'; el.className = 'remain good'; } }
   function checkout() {
     if (!V || !V.items.length) return C.toast('سبد خالی است', 'e');
-    var p = pays(); if (!p.length) { addPay('cash', V.totals.total); p = pays(); }
-    var data = { payments: p, partner_mode: $('.pmode') ? $('.pmode').value : '' };
+    var p = pays(); if (!p.length && !offs.length) { addPay('cash', V.totals.total); p = pays(); } if (offs.length) p.push({ method: 'offset', amount: offSum() });
+    var data = { offsets: offs, payments: p, partner_mode: $('.pmode') ? $('.pmode').value : '' };
     if (data.partner_mode === 'ship') { data.ship_to = { name: prompt('نامِ گیرنده:') || '', mobile: C.en(prompt('موبایلِ گیرنده:') || ''), address: prompt('نشانی:') || '' }; data.defer_stock = 1; }
     if (data.partner_mode === 'hold') data.defer_stock = 1;
     if (data.partner_mode === 'transfer') { if (!confirm('واریز به حساب: ' + ((V.customer && V.customer.xfer) || '') + '\nسفارش تا تأییدِ فیش در انبار رزرو می‌ماند. ثبت شود؟')) return; data.payments = []; data.defer_stock = 1; }
@@ -68,7 +79,7 @@
     $('.checkout').disabled = true;
     call('pos_checkout', data).then(function (r) {
       var html = '<p class="ok">فروشِ <b>' + C.esc(C.fa(r.number)) + '</b> ثبت شد.' + (r.change ? ' باقیِ پول: <b>' + C.money(r.change) + '</b> ریال' : '') + '</p><div class="actions"><a class="btn" target="_blank" href="index.php?p=print_receipt&id=' + r.sale_id + '&autoprint=1">چاپِ رسید</a><a class="btn" href="index.php?p=sale&id=' + r.sale_id + '">فاکتور / جزئیات</a></div>';
-      $('.done').innerHTML = html; root.querySelectorAll('.pay-row').forEach(function (x) { x.remove(); });
+      $('.done').innerHTML = html; root.querySelectorAll('.pay-row').forEach(function (x) { x.remove(); }); offs = []; drawOffs();
       return C.api('cart_open', {}).then(render);
     }).catch(function () {}).then(function () { $('.checkout').disabled = false; $('.scan-in').focus(); });
   }

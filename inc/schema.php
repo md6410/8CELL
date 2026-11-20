@@ -227,5 +227,30 @@ function pm_schema(): array {
         "CREATE TABLE IF NOT EXISTS partner_lists (id INT AUTO_INCREMENT PRIMARY KEY, doc_no VARCHAR(20) NOT NULL UNIQUE, customer_id INT NOT NULL, grade_id INT NULL, items INT NOT NULL DEFAULT 0,
             created_by INT NULL, created_at DATETIME NOT NULL, KEY(customer_id))$E",
     ];
-    return [$m1, $m2, $m3, $m4, $m5, $m6, $m7];
+    $m8 = [ // ضمانتِ فروشگاه (روالِ Weby warranty.php): نوع، ضمانت به دانه، کدِ فعال‌سازی، خرابی‌ها، دفترِ رویداد
+        "CREATE TABLE IF NOT EXISTS warranty_types (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(120) NOT NULL, months INT NOT NULL DEFAULT 12, terms TEXT NULL, active TINYINT NOT NULL DEFAULT 1, created_at DATETIME NOT NULL)$E",
+        "ALTER TABLE products ADD COLUMN warranty_type_id INT NULL",
+        "ALTER TABLE wh_units ADD COLUMN hologram VARCHAR(12) NULL, ADD UNIQUE KEY(hologram)",
+        "CREATE TABLE IF NOT EXISTS warranty_items (id INT AUTO_INCREMENT PRIMARY KEY, code VARCHAR(24) NOT NULL UNIQUE, product_id INT NOT NULL, variant_id INT NULL, product_title VARCHAR(250) NOT NULL DEFAULT '',
+            unit_id INT NULL UNIQUE, unit_code VARCHAR(80) NOT NULL DEFAULT '', type_id INT NULL, type_name VARCHAR(120) NOT NULL DEFAULT '', months INT NOT NULL DEFAULT 0, sale_id INT NULL, sale_number VARCHAR(30) NULL,
+            customer_id INT NULL, buyer_name VARCHAR(120) NULL, buyer_mobile VARCHAR(15) NULL, hologram VARCHAR(12) NULL UNIQUE, status VARCHAR(10) NOT NULL DEFAULT 'pending', claims_count INT NOT NULL DEFAULT 0,
+            sold_at DATETIME NULL, activated_at DATETIME NULL, expires_at DATETIME NULL, activated_by VARCHAR(80) NULL, activate_mode VARCHAR(10) NULL, cancel_reason VARCHAR(255) NULL, cancel_at DATETIME NULL,
+            void_at DATETIME NULL, note VARCHAR(500) NULL, created_at DATETIME NOT NULL, KEY(status), KEY(sale_id), KEY(buyer_mobile), KEY(expires_at))$E",
+        "CREATE TABLE IF NOT EXISTS warranty_otp (id INT AUTO_INCREMENT PRIMARY KEY, warranty_id INT NOT NULL, code_hash VARCHAR(255) NOT NULL, mobile VARCHAR(15) NOT NULL, name VARCHAR(120) NULL, tries INT NOT NULL DEFAULT 0,
+            status VARCHAR(10) NOT NULL DEFAULT 'open', expires_at DATETIME NOT NULL, created_at DATETIME NOT NULL, KEY(warranty_id))$E",
+        "CREATE TABLE IF NOT EXISTS warranty_claims (id INT AUTO_INCREMENT PRIMARY KEY, warranty_id INT NOT NULL, seq INT NOT NULL DEFAULT 1, status VARCHAR(10) NOT NULL DEFAULT 'open', problem TEXT NULL, action TEXT NULL,
+            cost BIGINT NOT NULL DEFAULT 0, opened_by VARCHAR(80) NULL, closed_by VARCHAR(80) NULL, opened_at DATETIME NOT NULL, closed_at DATETIME NULL, KEY(warranty_id), KEY(status))$E",
+        "CREATE TABLE IF NOT EXISTS warranty_log (id BIGINT AUTO_INCREMENT PRIMARY KEY, warranty_id INT NULL, event VARCHAR(30) NOT NULL, detail VARCHAR(500) NULL, actor VARCHAR(80) NULL, created_at DATETIME NOT NULL, KEY(warranty_id))$E",
+    ];
+    $m9 = [ // تهاتر در فروش (انبارِ بلاتکلیف) و اصلاحِ فروش (جابه‌جایی) — روالِ Weby pos-offset/pos-amend
+        "CREATE TABLE IF NOT EXISTS sale_offsets (id INT AUTO_INCREMENT PRIMARY KEY, sale_id INT NOT NULL, product_id INT NULL, variant_id INT NULL, title VARCHAR(250) NOT NULL, qty INT NOT NULL DEFAULT 1, value BIGINT NOT NULL,
+            state VARCHAR(10) NOT NULL DEFAULT 'pending', note VARCHAR(300) NULL, decided_by INT NULL, decided_at DATETIME NULL, created_at DATETIME NOT NULL, KEY(sale_id), KEY(state))$E",
+        "ALTER TABLE sales ADD COLUMN amend_of INT NULL, ADD KEY(amend_of)",
+    ];
+    $m10 = [ // پنلِ فروشندهٔ امانی/تأمین‌کننده (روالِ Weby seller/*)
+        "ALTER TABLE users ADD COLUMN supplier_id INT NULL, ADD KEY(supplier_id), MODIFY kind VARCHAR(10) NOT NULL DEFAULT 'staff'",
+        "ALTER TABLE supplier_payments ADD COLUMN confirmed_at DATETIME NULL, ADD COLUMN confirm_note VARCHAR(300) NULL",
+        "ALTER TABLE suppliers ADD COLUMN contract_at DATETIME NULL, ADD COLUMN contract_ip VARCHAR(45) NULL, ADD COLUMN contract_ver VARCHAR(20) NULL, ADD COLUMN bank_name VARCHAR(80) NULL, ADD COLUMN card_no VARCHAR(20) NULL, ADD COLUMN email VARCHAR(120) NULL",
+    ];
+    return [$m1, $m2, $m3, $m4, $m5, $m6, $m7, $m8, $m9, $m10];
 }

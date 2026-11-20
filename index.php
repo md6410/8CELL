@@ -25,7 +25,7 @@ if (in_array($p, ['print_doc', 'print_label', 'print_receipt', 'print_shift', 'p
 $u = current_user();
 if (!$u || $p === 'login') { require ROOT . '/pages/login.php'; exit; }
 $pages = pages_all();
-if ($p === '') { $p = can('reports.dashboard') ? 'dashboard' : (can('pos.use') ? 'pos' : 'me'); }
+if ($p === '') { $p = ($u['kind'] ?? '') === 'seller' ? 'seller' : (can('reports.dashboard') ? 'dashboard' : (can('pos.use') ? 'pos' : 'me')); }
 if (!isset($pages[$p])) { http_response_code(404); $p = 'me'; }
 [$title, $cap] = $pages[$p];
 if ($cap !== 'login' && !can($cap)) { http_response_code(403); ui_layout_start('دسترسی ندارید', $p); echo '<p class="empty">این دسترسی را ندارید.</p>'; ui_layout_end(); exit; }

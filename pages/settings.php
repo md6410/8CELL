@@ -17,7 +17,8 @@ if ($tab === 'biz') {
         'pos_require_unit' => ['برای کالای دانه‌دار اسکنِ دانه الزامی است', 'select', 0, ['0' => 'خیر', '1' => 'بله']], 'shortage_to_staff' => ['کسریِ صندوق به حسابِ صندوق‌دار', 'select', 0, ['1' => 'بله', '0' => 'خیر (هزینه)']],
         'staff_debt_pct' => ['سقفِ بدهیِ کارمند (٪ حقوق)', 'float'], 'staff_debt_cap' => ['سقفِ بدهیِ کارمندِ بی‌حقوق (ریال)', 'money'], 'loss_sms_confirm' => ['تأییدِ پیامکیِ ضرر', 'select', 0, ['0' => 'خیر', '1' => 'بله']],
         'channel_price_tolerance' => ['تحملِ اختلافِ قیمتِ کانال (ریال)', 'int'], 'scan_sound' => ['صدای اسکن', 'select', 0, ['1' => 'روشن', '0' => 'خاموش']], 'captcha_after' => ['کپچا پس از چند درخواستِ کد', 'int'], 'sess_ttl_min' => ['مهلتِ نشستِ بی‌فعالیت (دقیقه)', 'int'], 'base_url' => ['نشانیِ سایت', 'text'], 'own_seller_code' => ['کدِ فروشندهٔ خودِ فروشگاه در کدِ محموله (۱ تا ۴ نویسهٔ لاتین؛ پیش‌فرض OWN)', 'text']];
-    $v = []; foreach ($k as $n => $f) $v[$n] = setting($n, ''); echo ui_card('تنظیماتِ سند و فروش', $ro ? '' : ui_form('settings_save', $k, $v));
+    $k += ['pos_amend_hours' => ['مهلتِ اصلاحِ فروش توسطِ فروشنده (ساعت؛ ۰ = خاموش)', 'int'], 'warranty_holo_required' => ['هولوگرام برای فعال‌سازیِ ضمانت الزامی است', 'select', 0, ['1' => 'بله', '0' => 'خیر']], 'seller_contract_text' => ['متنِ قراردادِ فروشنده (در پنلِ فروشنده پذیرفته می‌شود)', 'textarea']];
+    $v = []; foreach ($k as $n => $f) $v[$n] = setting($n, ['pos_amend_hours' => '24', 'warranty_holo_required' => '1'][$n] ?? ''); echo ui_card('تنظیماتِ سند و فروش', $ro ? '' : ui_form('settings_save', $k, $v));
 } elseif ($tab === 'inv') {
     $yn = ['1' => 'بله', '0' => 'خیر'];
     $k = ['doc_template' => ['قالبِ چاپ', 'select', 1, doc_templates()], 'doc_color' => ['رنگِ سند', 'color'], 'doc_font_size' => ['اندازهٔ قلم (pt)', 'float'], 'doc_digits' => ['ارقام', 'select', 1, ['fa' => 'فارسی', 'en' => 'لاتین']],

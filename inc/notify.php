@@ -81,6 +81,7 @@ function notify_run(): array {
     try { $o['bale_links'] = bale_poll(); } catch (Throwable $e) { error_log('bale poll: ' . $e->getMessage()); }
     try { $o['promises'] = promise_reminders(); } catch (Throwable $e) { error_log('promises: ' . $e->getMessage()); }
     try { $o['cheques'] = cheque_reminders(); } catch (Throwable $e) { error_log('cheques: ' . $e->getMessage()); }
+    try { $o['warranty_expired'] = warranty_expire_due(); } catch (Throwable $e) { error_log('warranty expire: ' . $e->getMessage()); }
     try { $o['stock'] = stock_low_digest(); } catch (Throwable $e) { error_log('stock digest: ' . $e->getMessage()); }
     settings_save(['notify_last_run' => now()], false);
     return $o;

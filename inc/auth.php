@@ -8,14 +8,15 @@ function caps_all(): array {
             'ext.manage' => 'ماژول‌ها و قالب', 'update.manage' => 'به‌روزرسانی', 'sms.manage' => 'پیامک'],
         'کاربران' => ['users.view' => 'دیدنِ کاربران', 'users.edit' => 'ساختن/ویرایشِ کاربر', 'roles.edit' => 'ویرایشِ نقش‌ها'],
         'کالا و انبار' => ['products.view' => 'دیدنِ کالا', 'products.edit' => 'ویرایشِ کالا', 'prices.edit' => 'تغییرِ قیمت', 'stock.view' => 'دیدنِ موجودی',
-            'stock.in' => 'ورودِ انبار', 'stock.out' => 'خروجِ انبار و ارسال', 'stock.loss' => 'ضرر و عودت', 'labels.print' => 'چاپِ برچسب', 'labels.design' => 'طراحیِ برچسب', 'print.manage' => 'ایستگاه‌های چاپ'],
-        'خرید' => ['purchase.view' => 'دیدنِ خرید', 'purchase.edit' => 'ثبتِ سفارش و فاکتورِ خرید', 'supplier.pay' => 'پرداخت به تأمین‌کننده'],
-        'فروش' => ['pos.use' => 'صندوقِ فروش', 'pos.discount' => 'تخفیف در صندوق', 'pos.return' => 'مرجوعی', 'shift.manage' => 'مدیریتِ شیفت‌ها', 'partner.manage' => 'همکارانِ فروش',
+            'stock.in' => 'ورودِ انبار', 'stock.out' => 'خروجِ انبار و ارسال', 'stock.loss' => 'ضرر و عودت', 'labels.print' => 'چاپِ برچسب', 'warranty.manage' => 'ضمانت: فعال‌سازی و خرابی', 'warranty.void' => 'ضمانت: ابطال و نوع‌ها', 'labels.design' => 'طراحیِ برچسب', 'print.manage' => 'ایستگاه‌های چاپ'],
+        'خرید' => ['purchase.view' => 'دیدنِ خرید', 'purchase.edit' => 'ثبتِ سفارش و فاکتورِ خرید', 'seller.invite' => 'دعوتِ فروشنده/تأمین‌کننده به پنل', 'supplier.pay' => 'پرداخت به تأمین‌کننده'],
+        'فروش' => ['pos.use' => 'صندوقِ فروش', 'pos.discount' => 'تخفیف در صندوق', 'pos.return' => 'مرجوعی', 'pos.offset' => 'تهاتر در فروش', 'pos.amend' => 'اصلاحِ فروش (جابه‌جایی)', 'offset.decide' => 'تصمیم برای انبارِ بلاتکلیف', 'shift.manage' => 'مدیریتِ شیفت‌ها', 'partner.manage' => 'همکارانِ فروش',
             'ship.manage' => 'ارسال، پیک و لینکِ نشانی', 'docs.view' => 'دیدنِ فاکتورها', 'docs.edit' => 'ساختنِ فاکتور', 'docs.issue' => 'ثبت و شماره‌گذاریِ فاکتور', 'channels.manage' => 'کانال‌های فروش'],
         'کارکنان' => ['staff.ledger' => 'حسابِ کارکنان', 'commission.manage' => 'قاعدهٔ پورسانت', 'perf.view' => 'عملکردِ کارکنان', 'hr.view' => 'پروندهٔ کارکنان',
             'hr.edit' => 'ویرایشِ پرونده و قرارداد', 'hr.attendance' => 'حضور و مرخصی', 'hr.payroll' => 'حقوق و فیش'],
         'مشتریان' => ['customers.view' => 'دیدنِ مشتریان', 'customers.edit' => 'ویرایشِ مشتری', 'customers.credit' => 'نسیه و کیف پول'],
         'مالی' => ['ledger.view' => 'دفترِ کل', 'ledger.post' => 'سندِ دستی و سرفصل', 'bank.manage' => 'بانک، صندوق و چک', 'cheques.manage' => 'ثبت و پیگیریِ چک‌ها', 'notify.alerts' => 'دریافتِ هشدارها (بله/پیامک)', 'acc.share' => 'سهمِ شرکا'],
+        'پنلِ فروشنده' => ['seller.portal' => 'پنلِ فروشنده (فقط برای کاربرِ فروشنده/تأمین‌کننده)'],
         'گزارش' => ['reports.dashboard' => 'داشبورد', 'reports.sales' => 'گزارشِ فروش', 'reports.profit' => 'سود و زیان', 'reports.export' => 'خروجیِ گزارش'],
     ];
     return apply_filters('caps', $c);
@@ -27,7 +28,7 @@ function roles_builtin(): array {
         'accountant' => ['حسابدار', ['ledger.view', 'ledger.post', 'bank.manage', 'acc.share', 'reports.dashboard', 'reports.sales', 'reports.profit', 'reports.export', 'docs.view', 'docs.edit', 'docs.issue',
             'customers.view', 'customers.credit', 'purchase.view', 'supplier.pay', 'staff.ledger', 'users.view', 'users.edit', 'fiscal.manage', 'audit.view']],
         'warehouse' => ['انباردار', ['products.view', 'stock.view', 'stock.in', 'stock.out', 'stock.loss', 'labels.print', 'purchase.view']],
-        'seller' => ['فروشنده', ['pos.use', 'pos.discount', 'products.view', 'stock.view', 'customers.view', 'customers.edit', 'docs.view', 'docs.edit', 'labels.print']],
+        'seller' => ['فروشنده', ['pos.use', 'pos.discount', 'pos.amend', 'pos.offset', 'products.view', 'stock.view', 'customers.view', 'customers.edit', 'docs.view', 'docs.edit', 'labels.print']],
         'cashier' => ['صندوق‌دار', ['pos.use', 'pos.return', 'products.view', 'customers.view', 'customers.edit', 'docs.view']],
         'hr' => ['منابع انسانی', ['hr.view', 'hr.edit', 'hr.attendance', 'hr.payroll', 'perf.view', 'staff.ledger', 'commission.manage']],
     ];
@@ -70,6 +71,7 @@ function user_load(int $uid): ?array {
     if (!$u) return null;
     unset($u['pass_hash']);
     $u['roles'] = array_column(rows("SELECT r.slug FROM user_roles ur JOIN roles r ON r.id=ur.role_id WHERE ur.user_id=?", [$uid]), 'slug');
+    if ($u['kind'] === 'seller') { $u['is_super'] = 0; $u['caps'] = $u['supplier_id'] ? ['seller.portal'] : []; $u['roles'] = []; $u['branches'] = []; return $u; } // فروشنده فقط پنلِ خودش
     // توانایی = نقش‌ها ∪ دسترسی‌های تک‌تکِ همین کاربر (مثلِ Weby: هر کارِ مدیر را می‌شود به یک کارمند داد)
     $u['caps'] = $u['is_super'] ? array_keys(caps_flat()) : array_values(array_unique(array_merge(array_column(rows("SELECT DISTINCT rc.cap FROM user_roles ur JOIN role_caps rc ON rc.role_id=ur.role_id WHERE ur.user_id=?", [$uid]), 'cap'),
         array_column(rows("SELECT cap FROM user_caps WHERE user_id=?", [$uid]), 'cap'))));

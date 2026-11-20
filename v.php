@@ -82,6 +82,28 @@ if (isset($_GET['a'])) {
         . '<script>document.getElementById("geo").onclick=function(){var s=document.getElementById("geos");if(!navigator.geolocation){s.textContent="مرورگر موقعیت نمی‌دهد";return}s.textContent="در حالِ گرفتن…";navigator.geolocation.getCurrentPosition(function(p){document.getElementById("lat").value=p.coords.latitude;document.getElementById("lng").value=p.coords.longitude;s.textContent="✅ موقعیت گرفته شد (دقت حدود "+Math.round(p.coords.accuracy)+" متر)"},function(){s.textContent="اجازهٔ موقعیت داده نشد؛ نشانی را بنویسید"},{enableHighAccuracy:true,timeout:15000})};</script>';
     vpage('ثبتِ نشانی', $b);
 }
+// ── کارتِ عمومیِ ضمانت (کدِ تصادفی، نه ترتیبی) — استعلام با کدِ کارت یا شمارهٔ هولوگرام
+if (isset($_GET['w'])) {
+    $q = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', (string)$_GET['w']));
+    $w = $q !== '' ? row("SELECT * FROM warranty_items WHERE code=? OR hologram=?", [$q, $q]) : null;
+    if (!$w) vmsg('ضمانتی با این کد یا هولوگرام در سامانهٔ فروشگاه ثبت نشده است.', 404, 'استعلامِ ضمانت');
+    $t = $w['type_id'] ? row("SELECT terms FROM warranty_types WHERE id=?", [$w['type_id']]) : null; $ok = $w['status'] === 'active';
+    vpage('استعلامِ ضمانت', '<h1>' . ($ok ? '✅ ' : '') . 'ضمانتِ ' . h((string)setting('biz_name', '')) . '</h1><dl class="kv"><dt>کالا</dt><dd>' . h($w['product_title']) . '</dd><dt>وضعیت</dt><dd><b class="' . ($ok ? 'ok' : 'err') . '">' . h(warranty_statuses()[$w['status']] ?? '') . '</b></dd>'
+        . '<dt>نوع</dt><dd>' . h($w['type_name']) . ' — ' . fa_num((string)$w['months']) . ' ماه</dd>' . ($w['activated_at'] ? '<dt>شروع</dt><dd>' . jdate($w['activated_at']) . '</dd><dt>پایان</dt><dd>' . jdate((string)$w['expires_at']) . '</dd>' : '')
+        . '<dt>هولوگرام</dt><dd dir="ltr">' . h($w['hologram'] ? substr($w['hologram'], 0, 2) . str_repeat('•', max(0, strlen($w['hologram']) - 4)) . substr($w['hologram'], -2) : '—') . '</dd><dt>صاحب</dt><dd dir="ltr">' . h(fa_num(sms_mask((string)$w['buyer_mobile']))) . '</dd></dl>'
+        . ($t && $t['terms'] ? '<h3>شرایط</h3><div style="white-space:pre-wrap">' . h($t['terms']) . '</div>' : ''));
+}
+// ── پذیرشِ دعوتِ فروشنده (لینکِ امضاشدهٔ ۷ روزه)
+if (isset($_GET['sj'])) {
+    $sid = seller_invite_parse((string)$_GET['sj']); $sup = $sid ? row("SELECT * FROM suppliers WHERE id=?", [$sid]) : null;
+    if (!$sup) vmsg('این لینکِ دعوت نامعتبر است یا مهلتش گذشته؛ از فروشگاه لینکِ تازه بخواهید.', 404, 'پنلِ فروشنده');
+    $err = ''; $ex = row("SELECT username FROM users WHERE supplier_id=? AND kind='seller'", [$sid]);
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') { if (!vcsrf_ok()) $err = 'مهلتِ صفحه تمام شده بود؛ دوباره بفرستید.'; elseif (($_POST['p1'] ?? '') !== ($_POST['p2'] ?? '')) $err = 'دو رمز یکی نیستند';
+        else { try { seller_join($sid, (string)($_POST['u'] ?? ''), (string)$_POST['p1']); vpage('پنلِ فروشنده', '<h1>✅ آماده است</h1><p>اکنون با نامِ کاربری و رمزِ خود وارد شوید.</p><p><a class="btn primary" href="index.php?p=login">ورود</a></p>'); } catch (UserError $e) { $err = $e->getMessage(); } } }
+    vpage('پنلِ فروشنده', '<h1>پنلِ فروشنده — ' . h((string)setting('biz_name', '')) . '</h1><p>' . h($sup['name']) . ' عزیز، نامِ کاربری و رمز برای ورود به پنلِ خود بگذارید.</p>' . ($err ? '<p class="err">' . h($err) . '</p>' : '')
+        . '<form method="post" class="form"><input type="hidden" name="csrf" value="' . $csrf . '"><label class="field"><span>نامِ کاربری (لاتین)</span><input name="u" dir="ltr" required value="' . h((string)($_POST['u'] ?? ($ex['username'] ?? ''))) . '"></label>'
+        . '<label class="field"><span>رمز (۸ نویسه به بالا)</span><input type="password" name="p1" required minlength="8" autocomplete="new-password"></label><label class="field"><span>تکرارِ رمز</span><input type="password" name="p2" required autocomplete="new-password"></label><div class="actions"><button class="btn primary">ذخیره</button></div></form>');
+}
 // ── فهرستِ قیمتِ همکار (لینکِ امضاشدهٔ ۳۰ روزه)
 if (isset($_GET['pl'])) {
     $cid = plist_parse((string)$_GET['pl']); $c = $cid ? row("SELECT * FROM customers WHERE id=? AND is_partner=1", [$cid]) : null;

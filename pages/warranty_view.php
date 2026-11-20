@@ -1,0 +1,22 @@
+<?php
+$w = warranty_get(req_int('id')); if (!$w) throw new UserError('ضمانت یافت نشد');
+$t = $w['type_id'] ? row("SELECT * FROM warranty_types WHERE id=?", [$w['type_id']]) : null;
+echo ui_card('ضمانتِ ' . $w['code'] . ' — ' . (warranty_statuses()[$w['status']] ?? ''), '<dl class="kv"><dt>کالا</dt><dd>' . h($w['product_title']) . '</dd><dt>دانه</dt><dd dir="ltr">' . h($w['unit_code']) . '</dd><dt>هولوگرام</dt><dd dir="ltr">' . h((string)($w['hologram'] ?: '—')) . '</dd>'
+    . '<dt>نوع</dt><dd>' . h($w['type_name']) . ' — ' . fa_num((string)$w['months']) . ' ماه</dd><dt>فروش</dt><dd>' . ($w['sale_id'] ? '<a href="' . h(page_url('sale', ['id' => $w['sale_id']])) . '">' . h(fa_num((string)$w['sale_number'])) . '</a> — ' . jdate((string)$w['sold_at']) : '—') . '</dd>'
+    . '<dt>صاحب</dt><dd>' . h((string)$w['buyer_name']) . ' ' . h(fa_num((string)$w['buyer_mobile'])) . '</dd><dt>فعال‌سازی</dt><dd>' . ($w['activated_at'] ? jdate($w['activated_at'], true) . ' (' . h((string)$w['activated_by']) . ($w['activate_mode'] === 'manual' ? '، بی‌کد' : '') . ')' : '—') . '</dd>'
+    . '<dt>انقضا</dt><dd>' . ($w['expires_at'] ? jdate($w['expires_at']) : '—') . '</dd>' . ($w['cancel_reason'] ? '<dt>علتِ صفِ ابطال</dt><dd class="err">' . h($w['cancel_reason']) . '</dd>' : '') . '<dt>کارتِ عمومی</dt><dd><a target="_blank" dir="ltr" href="' . h(warranty_url($w['code'])) . '">' . h(warranty_url($w['code'])) . '</a></dd></dl>');
+if ($w['status'] === 'pending' && can('warranty.manage')) {
+    $h = '<p class="muted">کد به موبایلِ کسی که ضمانت به نامش ثبت می‌شود پیامک می‌شود (ممکن است هدیه باشد؛ خریدار فقط پیشنهاد است).</p>'
+        . ui_form('warranty_otp_send', ['mobile' => ['موبایلِ صاحبِ ضمانت', 'ltr', 1], 'name' => ['نام', 'text']], ['mobile' => $w['buyer_mobile'], 'name' => $w['buyer_name']], ['hidden' => ['id' => $w['id']], 'submit' => 'فرستادنِ کدِ فعال‌سازی', 'then' => 'none'])
+        . ui_form('warranty_activate', ['hologram' => ['شمارهٔ هولوگرام', 'ltr', setting('warranty_holo_required', '1') === '1' && !$w['hologram'] ? 1 : 0], 'code' => ['کدِ پیامک‌شده', 'ltr', 1]], ['hologram' => $w['hologram']], ['hidden' => ['id' => $w['id']], 'submit' => 'فعال‌سازی']);
+    if (current_user()['is_super']) $h .= '<details><summary>فعال‌سازیِ بی‌کد (فقط مدیرِ ارشد؛ در دفتر ثبت می‌شود)</summary>' . ui_form('warranty_activate', ['hologram' => ['هولوگرام', 'ltr'], 'mobile' => ['موبایل', 'ltr', 1], 'name' => ['نام', 'text']], ['hologram' => $w['hologram'], 'mobile' => $w['buyer_mobile'], 'name' => $w['buyer_name']], ['hidden' => ['id' => $w['id'], 'no_code' => 1], 'submit' => 'فعال‌سازیِ بی‌کد', 'confirm' => 'بی‌کد فعال شود؟']) . '</details>';
+    echo ui_card('فعال‌سازی', $h);
+}
+$cl = rows("SELECT * FROM warranty_claims WHERE warranty_id=? ORDER BY seq", [$w['id']]); $bo = ui_opts("SELECT id, title name FROM bank_accounts WHERE active=1");
+$h = ui_table(['seq' => ['#', 'num'], 'problem' => 'مشکل', 'action' => 'اقدام', 'cost' => ['هزینه', 'money'], 'opened_at' => ['پذیرش', 'datetime'], 'closed_at' => ['تحویل', 'datetime'],
+    'a' => ['', fn($r) => $r['status'] === 'open' && can('warranty.manage') ? '<details><summary>بستن</summary>' . ui_form('warranty_claim_close', ['action' => ['اقدامِ انجام‌شده', 'textarea', 1], 'cost' => ['هزینه برای ما', 'money'], 'method' => ['از', 'select', 0, ['cash' => 'صندوق', 'bank' => 'بانک']], 'bank_account_id' => ['حساب', 'select', 0, $bo]], [], ['hidden' => ['id' => $r['id']], 'submit' => 'بستنِ پرونده']) . '</details>' : ui_badge($r['status'] === 'open' ? 'باز' : 'بسته', $r['status'] === 'open' ? 'warn' : 'ok')]], $cl, ['empty' => 'خرابی‌ای ثبت نشده.']);
+if ($w['status'] === 'active' && can('warranty.manage')) $h .= ui_form('warranty_claim_open', ['problem' => ['شرحِ خرابی', 'textarea', 1]], [], ['hidden' => ['id' => $w['id']], 'submit' => 'پذیرشِ خرابی']);
+echo ui_card('خرابی‌ها (' . fa_num((string)$w['claims_count']) . ')', $h);
+if (can('warranty.void') && $w['status'] !== 'void') echo ui_card('ابطال', ($w['status'] === 'cancel' ? '<p class="warn">این ضمانت به‌خاطرِ مرجوعی در صفِ ابطال است؛ تصمیم با شما.</p>' . ui_btn_api('ردِ ابطال (ضمانت بماند)', 'warranty_cancel_reject', ['id' => $w['id']], ['class' => 'sm']) . ' ' : '')
+    . ui_btn_api('ابطالِ ضمانت', 'warranty_void', ['id' => $w['id']], ['class' => 'sm danger', 'prompt' => 'note:دلیلِ ابطال']));
+echo ui_card('سابقه', ui_table(['created_at' => ['زمان', 'datetime'], 'event' => 'رویداد', 'detail' => 'شرح', 'actor' => 'کاربر'], rows("SELECT * FROM warranty_log WHERE warranty_id=? ORDER BY id DESC", [$w['id']])));
