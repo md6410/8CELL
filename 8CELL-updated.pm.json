@@ -1,6 +1,6 @@
 {
  "schema": "weby-projectmanager/1",
- "exported_at": "2026-11-20T09:00:00.000Z",
+ "exported_at": "2026-11-20T00:00:00Z",
  "_instructions_for_ai": [
   "This file is the complete specification of a software/project plan exported from \"Project Manager\" (schema weby-projectmanager/1).",
   "HIERARCHY RULES (must be kept, the importer enforces them): kinds are area (بخش کلی), section (بخش), module (ماژول), task (کار). Top level (parent=null) contains ONLY areas. An area contains sections and modules. A section contains sections, modules and tasks. A module contains sections, modules (used inside it) and tasks. A task is the last level: it has NO children and exactly one input and one output. Areas, sections and modules may have several inputs/outputs. A dependency may name the ports it connects: {from,to,out:\"<output name of from>\",in:\"<input name of to>\"}. \"src_name\" marks a node copied from the shared module library - keep it.",
@@ -60501,7 +60501,26 @@
       "ta": null
      }
     ]
-   }
+   },
+   "tests": [
+    {
+     "id": 18080,
+     "ref": "X-INV-PARITY",
+     "title": "محاسبه همان نتیجهٔ اینورا",
+     "port": "",
+     "state": "",
+     "given": "۴۰۰ سندِ تصادفی (ریال/تومان/دلار، تخفیفِ درصد/مبلغ، رسمی، گردکردن) ساخته‌شده با کدِ خودِ اینورا",
+     "expect_kind": "value",
+     "expect": "همهٔ جمع‌ها، ردیف‌های رسمی و مبلغ به حروف برابر",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
   },
   {
    "id": 2352,
@@ -61931,7 +61950,26 @@
       "ta": null
      }
     ]
-   }
+   },
+   "tests": [
+    {
+     "id": 18083,
+     "ref": "X-INV-OFF",
+     "title": "قواعدِ فاکتورِ رسمی",
+     "port": "",
+     "state": "",
+     "given": "فروشنده بی‌شناسه؛ سپس نوعِ دوم با تخفیفِ سند",
+     "expect_kind": "value",
+     "expect": "خطاهای E و ردِ صدور؛ مالیاتِ ردیف ۹۹۹۹؛ تومان ← ریال و هزینهٔ اضافه حذف",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
   },
   {
    "id": 2358,
@@ -62335,7 +62373,26 @@
       "ta": null
      }
     ]
-   }
+   },
+   "tests": [
+    {
+     "id": 18081,
+     "ref": "X-INV-NUM",
+     "title": "الگوی شماره، شمارهٔ دستی و تکرار",
+     "port": "",
+     "state": "",
+     "given": "الگوی INV-{Y}{M}-{N}، پیش‌شمارهٔ ۳، شمارهٔ دستیِ ۰۰۵",
+     "expect_kind": "value",
+     "expect": "INV-140502-001، ۰۰۵، ۰۰۲؛ تکرارِ ۰۰۵ رد؛ توکنِ ۲۲ نویسه",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
   },
   {
    "id": 2360,
@@ -62582,7 +62639,26 @@
       "ta": null
      }
     ]
-   }
+   },
+   "tests": [
+    {
+     "id": 18086,
+     "ref": "X-INV-AMEND",
+     "title": "اصلاحیه، نسخه‌ها و قفلِ تأیید",
+     "port": "",
+     "state": "",
+     "given": "اصلاح با دلیل؛ بی‌دلیل؛ پس از تأییدِ خریدار",
+     "expect_kind": "value",
+     "expect": "نسخهٔ ۲؛ بی‌دلیل رد؛ پس از تأیید اصلاح و ابطال رد",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
   },
   {
    "id": 2361,
@@ -63353,7 +63429,26 @@
       "ta": null
      }
     ]
-   }
+   },
+   "tests": [
+    {
+     "id": 18087,
+     "ref": "X-INV-SHARE",
+     "title": "لینکِ رمزدار",
+     "port": "",
+     "state": "",
+     "given": "رمزِ خالی، کوتاه، درست؛ ۵ رمزِ اشتباه",
+     "expect_kind": "value",
+     "expect": "پس از ۵ اشتباه لینک بسته (۴۱۰)",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
   },
   {
    "id": 2364,
@@ -109335,6 +109430,265 @@
      }
     ]
    }
+  },
+  {
+   "id": "new-3",
+   "parent": 2361,
+   "order": 187,
+   "kind": "task",
+   "title": "تأییدِ اصالت با QR و رمزِ پیامکی",
+   "summary": "QR روی هر صفحه ← v.php?t=؛ تا رمزِ ۵ رقمیِ پیامک‌شده به رابطِ سند زده نشود هیچ‌چیز نشان داده نمی‌شود",
+   "details": "منطقِ اینورا (md6410/Invora)، آزموده‌شده",
+   "inputs": [
+    {
+     "name": "سندِ صادرشده",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "تأییدِ اصالت با QR و رمزِ پیامکی",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "توکنِ ۲۲ نویسه‌ای؛ رمز ۱۰ دقیقه؛ پس از رمزِ درست ۳۰ دقیقه دسترسی؛ فاصلهٔ ۶۰ ثانیه، ۵ در ساعت و ۱۵ در روز برای هر سند، ۱۰ در ساعت برای هر IP، ۵ تلاش؛ همهٔ رویدادها در vf_log",
+   "tech": "inc/invoice.php vf_*، v.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "invora"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18088,
+     "ref": "X-VF",
+     "title": "رمزِ پیامکیِ اصالت",
+     "port": "",
+     "state": "",
+     "given": "رمزِ اشتباه، رمزِ درست، سندِ بی‌رابط",
+     "expect_kind": "value",
+     "expect": "اشتباه رد و ثبت؛ درست ← دسترسی؛ بی‌رابط پیام",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-4",
+   "parent": 2358,
+   "order": 187,
+   "kind": "task",
+   "title": "سندِ برگشت (اعتبار)",
+   "summary": "برگشتِ بخشی از ردیف‌های فاکتور با سقفِ «مانده‌ی برگشت‌نشده»؛ در مرجوعیِ صندوق خودکار",
+   "details": "منطقِ اینورا (md6410/Invora)، آزموده‌شده",
+   "inputs": [
+    {
+     "name": "سندِ صادرشده",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "سندِ برگشت (اعتبار)",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "doc_credit_returned/doc_credit_create؛ return_commit سندِ برگشت می‌سازد؛ مانده‌ی حساب از جمعِ فاکتور منهای برگشت‌ها",
+   "tech": "inc/invoice.php، inc/pos.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "invora"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18084,
+     "ref": "X-INV-CREDIT",
+     "title": "سقفِ برگشت",
+     "port": "",
+     "state": "",
+     "given": "برگشتِ ۲ از ۳ و سپس دوباره ۲",
+     "expect_kind": "value",
+     "expect": "«حداکثر ۱ از ردیفِ ۱»؛ شمارهٔ R…",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    },
+    {
+     "id": 18085,
+     "ref": "X-INV-SALERET",
+     "title": "سندِ برگشت از مرجوعیِ صندوق",
+     "port": "",
+     "state": "",
+     "given": "فروشِ ۳ عدد با فاکتور و برگشتِ ۱",
+     "expect_kind": "value",
+     "expect": "سندِ برگشتِ ۱۰۰٬۰۰۰ و ماندهٔ ۲۰۰٬۰۰۰",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-5",
+   "parent": 2358,
+   "order": 187,
+   "kind": "task",
+   "title": "تبدیلِ پیش‌فاکتور و پیوندها",
+   "summary": "پیش‌فاکتور با مهلتِ اعتبار؛ تبدیل به فاکتور با فاصلهٔ روز و پرش از تعطیلی؛ پیوندِ دوطرفه و هشدارِ ناهمخوانی",
+   "details": "منطقِ اینورا (md6410/Invora)، آزموده‌شده",
+   "inputs": [
+    {
+     "name": "سندِ صادرشده",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "تبدیلِ پیش‌فاکتور و پیوندها",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "doc_convert/doc_link_check/doc_status",
+   "tech": "inc/invoice.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "invora"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18082,
+     "ref": "X-INV-PF",
+     "title": "تبدیلِ پیش‌فاکتور",
+     "port": "",
+     "state": "",
+     "given": "پیش‌فاکتورِ ۱۶ اردیبهشت، فاصلهٔ ۱ و ۲ روز",
+     "expect_kind": "value",
+     "expect": "۱۷ (پنجشنبه کاری) و ۱۹ (جمعه ← شنبه)؛ پیوندِ دوطرفه",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-6",
+   "parent": 2361,
+   "order": 187,
+   "kind": "task",
+   "title": "تأییدِ خریدار و وضعیتِ مودیان",
+   "summary": "تأییدِ خریدار سند را برای همیشه قفل می‌کند؛ ثبتِ وضعیتِ ارسال به سامانهٔ مودیان",
+   "details": "منطقِ اینورا (md6410/Invora)، آزموده‌شده",
+   "inputs": [
+    {
+     "name": "سندِ صادرشده",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "تأییدِ خریدار و وضعیتِ مودیان",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "acc_confirm؛ doc_set_moadian",
+   "tech": "inc/accshare.php، inc/invoice.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "invora"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": []
   }
  ],
  "dependencies": [
@@ -121308,6 +121662,294 @@
    ],
    "decisions": [],
    "how_to_test": "آزمونِ دستیِ ext_safe_rel",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2350,
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "calcDoc، شماره‌گذاری، پیش‌فاکتور/فاکتور/رسمی/برگشت، اصلاحیه و نسخه‌ها، قالب‌های چاپیِ اینورا (رسمی، نواری، ساده، قاب‌دار، صورتحسابِ رسمی) با صفحه‌بندیِ A4، QR اصالت با رمزِ پیامکی، لینکِ رمزدار، تأییدِ خریدار و وضعیتِ مودیان.",
+   "files_changed": [
+    "inc/invoice.php",
+    "assets/doc.css",
+    "assets/doc-paper.js",
+    "assets/doc-editor.js",
+    "pages/doc.php",
+    "pages/docs.php",
+    "pages/settings.php",
+    "v.php",
+    "inc/routes.php",
+    "inc/schema.php",
+    "inc/accshare.php",
+    "inc/pos.php",
+    "inc/sms.php",
+    "inc/settings.php",
+    "tests/run.php",
+    "tests/fixtures/invora_calc.json"
+   ],
+   "decisions": [
+    "گردکردنِ مالیاتِ سندها مثلِ اینورا «نزدیک‌ترین» است؛ رسیدِ صندوق همچنان «رو به پایین» (آزمونِ 8C-POS-03)."
+   ],
+   "how_to_test": "php tests/run.php (X-INV-*، X-VF)؛ صدور، چاپ و اسکنِ QR در مرورگر",
+   "deviations": "سه امکانِ اینورا آورده نشد: اختلافِ تصادفیِ قیمت برای ساختِ فاکتورِ «مرجع» (ساختِ سندِ شبیه‌سازی‌شده)، چندشرکتی (8CELL یک کسب‌وکار است)، صدورِ دسته‌ای (بیرون از این مرحله).",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2351,
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "calc_doc برابر با calcDoc: گردکردنِ Math.round با اپسیلون، تخفیفِ ردیف درصد/مبلغ، تخفیفِ سند تناسبی، مالیات روی پایهٔ مشمول، تخفیفِ سند در فاکتورِ رسمی ردیف‌به‌ردیف با باقی‌مانده روی ردیفِ آخر.",
+   "files_changed": [
+    "inc/invoice.php",
+    "tests/fixtures/invora_calc.json"
+   ],
+   "decisions": [],
+   "how_to_test": "X-INV-PARITY: ۴۰۰ سند ساخته‌شده با کدِ خودِ اینورا",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2352,
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "ردیفِ دلاری با سود و گردکردنِ واحدِ fx_round؛ ارزِ سند ریال/تومان/دلار (دلار ۲ رقمِ اعشار).",
+   "files_changed": [
+    "inc/invoice.php",
+    "assets/doc-editor.js"
+   ],
+   "decisions": [],
+   "how_to_test": "X-INV-PARITY",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2353,
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "تخفیفِ ردیف و سند، مشمول/معاف، نرخِ مالیات از تنظیمات یا سند.",
+   "files_changed": [
+    "inc/invoice.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-INV-PARITY",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2354,
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "گردکردنِ جمع: خاموش/فقط با کالای دلاری/همیشه، رو به پایین یا نزدیک‌ترین، ثابت در لحظهٔ صدور؛ مبلغ به حروف برای هر ارز.",
+   "files_changed": [
+    "inc/invoice.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-INV-PARITY (words)",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2356,
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "id_ok/digits_of اینورا برای کدِ ملی، شناسهٔ ملی، کدِ اقتصادی و کدِ پستی.",
+   "files_changed": [
+    "inc/invoice.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-INV-OFF",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2357,
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "official_issues: خطا (E) جلوی صدور را می‌گیرد، هشدار (W) فقط نشان داده می‌شود؛ تبدیلِ تومان به ریال و حذفِ هزینهٔ اضافه در «تبدیل به رسمی».",
+   "files_changed": [
+    "inc/invoice.php",
+    "pages/doc.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-INV-OFF",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2359,
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "الگو با {Y}{y}{M}{D}{N}، پیش‌شماره، شمارهٔ شروع، صفر شدن در سالِ نو؛ شمارهٔ بعدی بی‌برخورد؛ شمارهٔ دستی با بررسیِ تکرار؛ پیش‌نمایشِ شمارهٔ بعد در تنظیمات.",
+   "files_changed": [
+    "inc/invoice.php",
+    "pages/settings.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-INV-NUM",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2360,
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "سندِ صادرشده فقط با «اصلاحیه» و دلیل عوض می‌شود؛ هر نسخه در doc_revisions با دلیل؛ بازگردانیِ نسخه؛ پس از تأییدِ خریدار هیچ تغییری ممکن نیست.",
+   "files_changed": [
+    "inc/invoice.php",
+    "pages/doc.php",
+    "inc/schema.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-INV-AMEND",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2362,
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "پرت از pgSplit/pgShrink اینورا: اول کوچک‌کردنِ قلم تا ۸۵٪، سپس شکستن با «جمع نقل از/به صفحهٔ بعد»، شمارهٔ صفحه و QR روی هر برگ.",
+   "files_changed": [
+    "assets/doc-paper.js",
+    "assets/doc.css"
+   ],
+   "decisions": [],
+   "how_to_test": "سندِ ۴۰ ردیفی ← ۳ برگِ A4 در مرورگر (بررسی شد)",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2363,
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "رمزِ ۴–۵ رقمی، مهلت، سقفِ دفعاتِ استفاده، ابطال، ارسالِ پیامکی؛ ۵ رمزِ اشتباه لینک را می‌بندد؛ ثبتِ هر بار باز شدن.",
+   "files_changed": [
+    "inc/invoice.php",
+    "v.php",
+    "pages/doc.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-INV-SHARE و باز کردنِ لینک در مرورگر",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": "new-3",
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "v.php?t=: فقط نام و شمارهٔ پوشیدهٔ رابط؛ رمز با پیامک (الگوی vcode)؛ محدودیت‌های اینورا؛ پس از رمز همان نسخهٔ ثبت‌شده در لحظهٔ صدور (vf_html) با وضعیتِ معتبر/باطل.",
+   "files_changed": [
+    "inc/invoice.php",
+    "v.php",
+    "inc/sms.php",
+    "inc/schema.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-VF و اسکنِ QR در مرورگر",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": "new-4",
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "سندِ برگشت با شمارهٔ R…؛ سقفِ هر ردیف = فروخته منهای برگشت‌های قبلی؛ مرجوعیِ صندوق برای فروشِ فاکتوردار خودکار سندِ برگشت می‌سازد.",
+   "files_changed": [
+    "inc/invoice.php",
+    "inc/pos.php",
+    "inc/accshare.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-INV-CREDIT، X-INV-SALERET",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": "new-5",
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "تاریخِ فاکتور = تاریخِ پیش‌فاکتور + فاصله، پرش به روزِ کاری؛ پیوندِ دوطرفه؛ وضعیتِ «تبدیل به فاکتور شد/منقضی».",
+   "files_changed": [
+    "inc/invoice.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-INV-PF",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": "new-6",
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "تأییدِ خریدار با یادداشت؛ وضعیتِ مودیان (ارسال‌نشده/ارسال/پذیرفته/رد) با کدِ رهگیری.",
+   "files_changed": [
+    "inc/accshare.php",
+    "inc/invoice.php",
+    "pages/doc.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-INV-AMEND (قفل پس از تأیید)",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2333,
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "فاکتور از فروشِ صندوق (doc_from_sale) با شناسهٔ ردیفِ فروش برای برگشتِ بعدی.",
+   "files_changed": [
+    "inc/invoice.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-INV-SALERET",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
+  },
+  {
+   "node": 2335,
+   "status": "done",
+   "progress": 100,
+   "summary": "بازنویسی با منطقِ آزموده‌شدهٔ اینورا (مخزنِ md6410/Invora) — نسخهٔ ۱.۲.۰",
+   "how": "مرجوعیِ فروشِ فاکتوردار سندِ برگشت می‌سازد.",
+   "files_changed": [
+    "inc/pos.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-INV-SALERET",
    "deviations": "",
    "remaining": "",
    "actual_days": 0.5

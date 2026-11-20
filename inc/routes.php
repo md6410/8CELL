@@ -117,10 +117,19 @@ function api_routes(): array {
         'doc_calc' => ['docs.edit', fn($in) => api_doc_calc($in), 'POST'],
         'doc_commit' => ['docs.issue', fn($in) => doc_commit((int)$in['id']), 'POST'],
         'doc_amend' => ['docs.issue', fn($in) => ['revision' => doc_amend((int)$in['id'], $in)], 'POST'],
+        'doc_restore' => ['docs.issue', fn($in) => ['revision' => doc_restore((int)$in['id'], (int)$in['rev'])], 'POST'],
         'doc_void' => ['docs.issue', function ($in) { doc_void((int)$in['id'], (string)($in['reason'] ?? '')); return ['ok' => true]; }, 'POST'],
-        'doc_share' => ['docs.view', fn($in) => doc_share((int)$in['id'], (string)($in['pass'] ?? ''), to_int($in['days'] ?? 30)), 'POST'],
-        'doc_issues' => ['docs.view', fn($in) => official_issues(doc_get((int)$in['id']) ?? []), 'GET'],
-        'doc_confirm' => ['acc.share', function ($in) { acc_confirm((int)$in['id']); return ['ok' => true]; }, 'POST'],
+        'doc_convert' => ['docs.edit', fn($in) => ['id' => doc_convert((int)$in['id'])], 'POST'],
+        'doc_clone' => ['docs.edit', fn($in) => ['id' => doc_clone((int)$in['id'], isset(doc_kinds()[$in['kind'] ?? '']) ? ['kind' => $in['kind']] : [])], 'POST'],
+        'doc_official' => ['docs.edit', function ($in) { doc_make_official((int)$in['id']); return ['ok' => true]; }, 'POST'],
+        'doc_moadian' => ['docs.issue', function ($in) { doc_set_moadian((int)$in['id'], (string)$in['state'], (string)($in['tax_id'] ?? '')); return ['ok' => true]; }, 'POST'],
+        'doc_credit' => ['docs.issue', fn($in) => ['id' => doc_credit_create((int)$in['id'], (array)($in['q'] ?? []), (string)($in['reason'] ?? ''), (string)($in['note'] ?? ''))], 'POST'],
+        'doc_contact' => ['docs.edit', function ($in) { $m = norm_mobile($in['mobile'] ?? ''); if ($m !== '' && !mobile_ok($m)) throw new UserError('موبایل معتبر نیست'); upd('docs', ['contact_name' => trim((string)($in['name'] ?? '')) ?: null, 'contact_mobile' => $m ?: null], 'id=?', [(int)$in['id']]); audit('docs', $in['id'], 'contact', null, ['mobile' => $m], 'رابطِ اصالت'); return ['ok' => true]; }, 'POST'],
+        'doc_share' => ['docs.view', fn($in) => doc_share((int)$in['id'], to_int($in['days'] ?? 30), to_int($in['max'] ?? 0), (string)($in['pin'] ?? '')), 'POST'],
+        'doc_share_revoke' => ['docs.view', function ($in) { doc_share_revoke((int)$in['id']); return ['ok' => true]; }, 'POST'],
+        'doc_share_sms' => ['docs.view', fn($in) => doc_share_send_sms((int)$in['id'], (string)$in['mobile']), 'POST'],
+        'doc_issues' => ['docs.view', fn($in) => official_issues(doc_get((int)$in['id']) ?? ['lines' => []]), 'GET'],
+        'doc_confirm' => ['docs.issue', function ($in) { acc_confirm((int)$in['id'], (string)($in['note'] ?? '')); return ['ok' => true]; }, 'POST'],
         'doc_pay' => ['acc.share', fn($in) => ['id' => doc_pay_add((int)$in['id'], to_int($in['amount']), jparse($in['d'] ?? ''), (string)($in['ref'] ?? ''))], 'POST'],
         'acc_settle' => ['acc.share', fn($in) => ['id' => acc_settle((int)$in['partner_id'], to_int($in['amount']), jparse($in['d'] ?? ''), (string)($in['note'] ?? ''))], 'POST'],
         // کانال‌ها (مدیریت)
@@ -177,7 +186,7 @@ function api_password_change(array $in): array {
 }
 /** فقط کلیدهای مجاز ذخیره می‌شوند */
 function api_settings_save(array $in): array {
-    $allowed = ['vat_pct', 'tax_round', 'total_round', 'doc_pattern', 'fx_round', 'sms_test_mode', 'sms_retry_max', 'smsir_api_key', 'update_repo', 'update_branch', 'update_auto', 'update_interval', 'update_token', 'base_url',
+    $allowed = ['vat_pct', 'tax_round', 'total_round', 'fx_round', 'doc_template', 'doc_color', 'doc_font_size', 'doc_pat_invoice', 'doc_pat_proforma', 'doc_pat_official', 'doc_pat_credit', 'doc_pad', 'doc_start', 'doc_reset_yearly', 'proforma_valid_days', 'proforma_gap_days', 'doc_total_round', 'doc_total_round_dir', 'doc_tax_round', 'doc_show_seller', 'doc_show_bank', 'doc_show_bank_pf', 'doc_show_stamp', 'doc_show_sig', 'doc_show_watermark', 'doc_show_validity', 'doc_show_words', 'doc_digits', 'invoice_title', 'proforma_title', 'off_title', 'doc_header_text', 'vf_on', 'vf_name', 'vf_mobile', 'doc_default_notes', 'doc_default_terms', 'doc_vat_on', 'biz_memory_id', 'biz_branch_code', 'biz_province', 'biz_city', 'biz_fax', 'biz_email', 'biz_website', 'sms_test_mode', 'sms_retry_max', 'smsir_api_key', 'update_repo', 'update_branch', 'update_auto', 'update_interval', 'update_token', 'base_url',
         'reserve_minutes', 'staff_debt_pct', 'staff_debt_cap', 'shortage_to_staff', 'holiday_rule', 'thursday_off', 'holiday_url', 'fx_nav_key', 'fx_nav_unit', 'fx_max_gap', 'scan_sound', 'captcha_after', 'sess_ttl_min',
         'pos_require_unit', 'loss_sms_confirm', 'own_seller_code', 'sms_otp_ttl', 'sms_otp_cooldown', 'sms_otp_domain', 'sms_retry_gap', 'channel_price_tolerance', 'hr_rules', 'labor_rates'];
     $s = [];
@@ -231,10 +240,11 @@ function api_cart_doc_disc(array $in): array {
     return cart_view((int)$c['id']);
 }
 function api_doc_calc(array $in): array {
-    $lines = [];
-    foreach ((array)($in['lines'] ?? []) as $l) { if (trim((string)($l['title'] ?? '')) === '' && !(int)($l['product_id'] ?? 0)) continue; $u = (int)($l['unit_id'] ?? 0) ?: null; $lines[] = ['title' => $l['title'] ?? '', 'qty' => qty_in($l['qty'] ?? 1, $u), 'unit_id' => $u, 'price' => to_int($l['price'] ?? 0), 'disc' => to_int($l['disc'] ?? 0), 'tax_exempt' => !empty($l['tax_exempt'])]; }
-    if (!$lines) return ['total' => 0];
-    return calc_doc($lines, ['doc_disc' => to_int($in['doc_disc'] ?? 0), 'extra' => to_int($in['extra'] ?? 0)] + (isset($in['vat_pct']) && $in['vat_pct'] !== '' ? ['vat_pct' => to_float($in['vat_pct'])] : []));
+    $cur = in_array($in['currency'] ?? 'IRR', ['IRR', 'IRT', 'USD'], true) ? ($in['currency'] ?? 'IRR') : 'IRR'; $kind = (string)($in['kind'] ?? 'invoice');
+    $lines = doc_lines_in((array)($in['lines'] ?? []), $cur); if (!$lines) return ['total' => 0];
+    $o = ['doc_disc' => to_float($in['doc_disc'] ?? 0), 'doc_disc_type' => ($in['doc_disc_type'] ?? '') === '%' ? '%' : 'amount', 'vat_on' => empty($in['vat_on']) ? 0 : 1, 'vat_pct' => isset($in['vat_pct']) && $in['vat_pct'] !== '' ? to_float($in['vat_pct']) : vat_pct(), 'extra' => to_float($in['extra'] ?? 0)];
+    $c = doc_calc(['kind' => $kind, 'status' => 'draft', 'currency' => $cur, 'd' => jparse($in['d'] ?? '') ?: today(), 'lines' => $lines, 'opts' => $o]);
+    $f = fn($n) => doc_money($n, $cur); return array_diff_key($c, ['lines' => 1, 'off' => 1]) + ['fmt' => ['sub' => $f($c['sub']), 'disc' => $f($c['lineDisc'] + $c['docDisc']), 'vat' => $f($c['vat']), 'total' => $f($c['total']), 'adj' => $f($c['roundAdj'])], 'number' => peek_seq($kind, jparse($in['d'] ?? '') ?: today())];
 }
 function api_channel_status(array $in): array {
     $c = channel_auth('channel_status', '');

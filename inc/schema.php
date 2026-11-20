@@ -187,5 +187,13 @@ function pm_schema(): array {
         "ALTER TABLE suppliers MODIFY seller_code VARCHAR(4) NULL",
     ];
     $m4 = ["ALTER TABLE holidays ADD COLUMN is_off TINYINT NOT NULL DEFAULT 1"]; // ردیفِ دستی با is_off=0 تعطیلیِ اشتباهِ سرویس را لغو می‌کند
-    return [$m1, $m2, $m3, $m4];
+    $m5 = [ // فاکتورساز با موتورِ اینورا
+        "ALTER TABLE docs ADD COLUMN currency VARCHAR(3) NOT NULL DEFAULT 'IRR', ADD COLUMN linked_id INT NULL, ADD COLUMN credit_ref INT NULL, ADD COLUMN manual_number TINYINT NOT NULL DEFAULT 0,
+            ADD COLUMN contact_name VARCHAR(120) NULL, ADD COLUMN contact_mobile VARCHAR(15) NULL, ADD COLUMN off_canceled INT NULL, ADD COLUMN vf_html MEDIUMTEXT NULL, ADD COLUMN edited_at DATETIME NULL,
+            ADD COLUMN issued_by INT NULL, ADD COLUMN confirm_note VARCHAR(300) NULL, MODIFY verify_token VARCHAR(32) NULL, ADD KEY(credit_ref), ADD KEY(linked_id)",
+        "ALTER TABLE doc_revisions ADD COLUMN reason VARCHAR(300) NULL",
+        "ALTER TABLE doc_shares MODIFY token VARCHAR(32) NOT NULL, ADD COLUMN max_uses INT NOT NULL DEFAULT 0, ADD COLUMN fails INT NOT NULL DEFAULT 0, ADD COLUMN dead VARCHAR(10) NULL, ADD COLUMN last_at DATETIME NULL",
+        "CREATE TABLE IF NOT EXISTS vf_log (id BIGINT AUTO_INCREMENT PRIMARY KEY, doc_id INT NOT NULL, share_id INT NULL, event VARCHAR(20) NOT NULL, ip VARCHAR(45) NULL, ua VARCHAR(250) NULL, info TEXT NULL, at DATETIME NOT NULL, KEY(doc_id))$E",
+    ];
+    return [$m1, $m2, $m3, $m4, $m5];
 }

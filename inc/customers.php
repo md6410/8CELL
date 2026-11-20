@@ -43,7 +43,6 @@ function customers_merge(int $keep, int $drop): void {
         audit('customers', $drop, 'merge', null, ['into' => $keep], 'ادغامِ مشتری');
     });
 }
-function customer_snapshot(int $id): array { $c = customer_get($id) ?: []; return ['id' => $id, 'kind' => ($c['kind'] ?? 'person') === 'org' ? 'legal' : 'person', 'name' => $c['name'] ?? '', 'national_id' => $c['national_id'] ?? '', 'economic_code' => $c['economic_code'] ?? '', 'postal_code' => $c['postal_code'] ?? '', 'address' => $c['address'] ?? '', 'mobile' => $c['mobile'] ?? '']; }
 function customer_search(string $q, int $limit = 20): array {
     $q = trim(en_num($q)); if ($q === '') return [];
     $m = norm_mobile($q);

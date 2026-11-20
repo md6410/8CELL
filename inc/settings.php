@@ -33,6 +33,8 @@ function biz_fields(): array {
         'biz_reg_no' => ['شمارهٔ ثبت', 'text', false], 'biz_postal_code' => ['کدِ پستی', 'text', false],
         'biz_address' => ['نشانی', 'textarea', false], 'biz_phone' => ['تلفن', 'text', false], 'biz_mobile' => ['موبایلِ مدیر', 'text', false],
         'biz_logo' => ['لوگو (نشانیِ تصویر)', 'text', false], 'biz_stamp' => ['مهر (نشانیِ تصویر)', 'text', false], 'biz_sign' => ['امضا (نشانیِ تصویر)', 'text', false],
+        'biz_fax' => ['نمابر', 'text', false], 'biz_email' => ['ایمیل', 'text', false], 'biz_website' => ['وب‌سایت', 'text', false], 'biz_province' => ['استان', 'text', false], 'biz_city' => ['شهر', 'text', false],
+        'biz_memory_id' => ['شناسهٔ یکتای حافظهٔ مالیاتی (سامانهٔ مودیان)', 'text', false], 'biz_branch_code' => ['کدِ شعبه (سامانهٔ مودیان)', 'text', false],
         'doc_footer' => ['پانویسِ فاکتور', 'textarea', false], 'brand_color' => ['رنگِ اصلی', 'color', false],
     ];
 }
@@ -66,7 +68,7 @@ function wh_provinces(): array {
 function seed_defaults(): void {
     $has = fn($t) => (int)val("SELECT COUNT(*) FROM `$t`") > 0;
     if (setting('biz_name') === null) settings_save(['biz_name' => 'کسب‌وکارِ من', 'biz_kind' => 'person', 'vat_pct' => '10', 'tax_round' => 'floor',
-        'total_round' => '0', 'doc_pattern' => '{y}-{seq5}', 'sms_test_mode' => '1', 'sms_retry_max' => '3', 'update_repo' => 'md6410/8cell',
+         'sms_test_mode' => '1', 'sms_retry_max' => '3', 'update_repo' => 'md6410/8cell',
         'update_branch' => 'main', 'update_auto' => '1', 'update_interval' => '10', 'reserve_minutes' => '30', 'staff_debt_pct' => '20',
         'holiday_rule' => 'next', 'thursday_off' => '0', 'scan_sound' => '1', 'brand_color' => '#0f766e'], false);
     if (!$has('branches')) {

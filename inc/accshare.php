@@ -3,21 +3,22 @@
 declare(strict_types=1);
 
 /** فقط فاکتورِ ثبت‌شده (نه پیش‌فاکتور/برگشت/ابطال) تأییدپذیر است */
-function acc_confirmable(array $d): bool { return $d['status'] === 'issued' && in_array($d['kind'], ['invoice', 'official'], true); }
-function acc_confirm(int $id): void {
+/** accConfirmable اینورا: فاکتورِ ثبت‌شده، نه برگشت و نه صورتحسابِ ابطالی/برگشتی */
+function acc_confirmable(array $d): bool { return $d['status'] === 'issued' && in_array($d['kind'], ['invoice', 'official'], true) && !($d['kind'] === 'official' && in_array($d['subject'] ?? 'main', ['cancel', 'return'], true)); }
+function acc_confirm(int $id, string $note = ''): void {
     $d = doc_get($id); if (!$d) throw new UserError('سند یافت نشد');
     if (!acc_confirmable($d)) throw new UserError('فقط فاکتورِ ثبت‌شده تأیید می‌شود');
     if ($d['confirmed']) throw new UserError('این فاکتور قبلاً تأیید شده و برگشت‌ناپذیر است');
     if (empty($d['buyer']['name'])) throw new UserError('نامِ خریدار روی فاکتور نیست');
-    upd('docs', ['confirmed' => 1, 'confirmed_at' => now()], 'id=?', [$id]);
+    upd('docs', ['confirmed' => 1, 'confirmed_at' => now(), 'confirm_note' => mb_cut(trim($note), 300) ?: null], 'id=?', [$id]);
     audit('docs', $id, 'confirm', ['confirmed' => 0], ['confirmed' => 1], 'تأییدِ خریدار');
 }
 /** مبلغِ ریالیِ پس از برگشت */
-function acc_doc_rial(array $d): int { return (int)$d['total'] - (int)val("SELECT COALESCE(SUM(total),0) FROM docs WHERE ref_doc_id=? AND kind='return' AND status='issued'", [$d['id']]); }
+function acc_doc_rial(array $d): int { return max(0, (int)$d['total'] - (int)val("SELECT COALESCE(SUM(total),0) FROM docs WHERE credit_ref=? AND kind='return' AND status='issued'", [$d['id']])); }
 function acc_paid(int $docId): int { return (int)val("SELECT COALESCE(SUM(amount),0) FROM doc_payments WHERE doc_id=?", [$docId]); }
 function doc_pay_state(array $d): array {
     $rial = acc_doc_rial($d); $paid = acc_paid((int)$d['id']); $rem = $rial - $paid;
-    $label = !$d['confirmed'] ? 'منتظرِ تأییدِ خریدار' : ($rem > 0 ? 'منتظرِ واریز' : 'واریز شد');
+    $label = !acc_confirmable($d) ? ($d['status'] === 'draft' ? 'پیش‌نویس' : '—') : (!$d['confirmed'] ? 'منتظرِ تأییدِ خریدار' : ($rem > 0 ? 'منتظرِ واریز' : 'واریز شد'));
     return ['rial' => $rial, 'paid' => $paid, 'remain' => $rem, 'label' => $label];
 }
 function doc_pay_add(int $docId, int $amount, ?string $d, string $ref = ''): int {

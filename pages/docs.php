@@ -1,8 +1,8 @@
 <?php
-$f = report_filters($_GET); echo ui_date_filter('docs', $f);
-if (can('docs.edit')) echo '<div class="actions" style="margin:0 0 12px">' . implode(' ', array_map(fn($k, $t) => '<a class="btn" href="' . h(page_url('doc', ['kind' => $k])) . '">+ ' . h($t) . '</a>', array_keys(doc_kinds()), doc_kinds())) . '</div>';
-$st = ['draft' => ['پیش‌نویس', 'warn'], 'issued' => ['ثبت‌شده', 'ok'], 'void' => ['باطل', 'err']];
-$rs = rows("SELECT * FROM docs WHERE d BETWEEN ? AND ? ORDER BY id DESC LIMIT 500", [$f['from'], $f['to']]);
-foreach ($rs as &$r) { $r['buyer_name'] = json_decode($r['buyer'], true)['name'] ?? ''; }
-echo ui_card('اسناد', ui_table(['number' => ['شماره', fn($r) => h(fa_num($r['number'] ?: '—'))], 'kind' => ['نوع', fn($r) => h(doc_kinds()[$r['kind']] ?? '')], 'd' => ['تاریخ', 'date'], 'buyer_name' => 'خریدار', 'total' => ['مبلغ', 'money'],
-    'status' => ['وضعیت', fn($r) => ui_badge($st[$r['status']][0], $st[$r['status']][1]) . ($r['confirmed'] ? ' ' . ui_badge('تأییدِ خریدار', 'ok') : '')]], $rs, ['filter' => 1, 'href' => fn($r) => page_url('doc', ['id' => $r['id']])]));
+$f = report_filters($_GET); $kf = (string)($_GET['kind'] ?? ''); echo ui_date_filter('docs', $f, $kf !== '' ? ['kind' => $kf] : []);
+if (can('docs.edit')) echo '<div class="actions" style="margin:0 0 12px">' . implode(' ', array_map(fn($k, $t) => '<a class="btn" href="' . h(page_url('doc', ['kind' => $k])) . '">+ ' . h($t) . '</a>', ['proforma', 'invoice', 'official'], [doc_kinds()['proforma'], doc_kinds()['invoice'], doc_kinds()['official']])) . '</div>';
+echo '<nav class="tabs">' . implode('', array_map(fn($k, $t) => '<a href="' . h(page_url('docs', ['kind' => $k, 'from' => jdate($f['from'], false, false), 'to' => jdate($f['to'], false, false)])) . '"' . ($kf === $k ? ' class="on"' : '') . '>' . h($t) . '</a>', array_merge([''], array_keys(doc_kinds())), array_merge(['همه'], array_values(doc_kinds())))) . '</nav>';
+$rs = rows("SELECT * FROM docs WHERE d BETWEEN ? AND ?" . ($kf !== '' && isset(doc_kinds()[$kf]) ? " AND kind=" . db()->quote($kf) : '') . " ORDER BY d DESC, id DESC LIMIT 1000", [$f['from'], $f['to']]);
+foreach ($rs as &$r) { foreach (['buyer', 'seller', 'lines', 'opts', 'totals'] as $k) $r[$k] = json_decode((string)$r[$k], true) ?: []; $r['buyer_name'] = $r['buyer']['name'] ?? ''; [$r['st'], $r['stk']] = doc_status($r); $r['pay'] = doc_pay_state($r)['label']; }
+echo ui_card('دفترِ اسناد (' . fa_num(count($rs)) . ')', ui_table(['number' => ['شماره', fn($r) => '<b dir="ltr">' . h(fa_num($r['number'] ?: '—')) . '</b>'], 'kind' => ['نوع', fn($r) => h(doc_kinds()[$r['kind']] ?? '')], 'd' => ['تاریخ', 'date'], 'buyer_name' => 'خریدار',
+    'total' => ['مبلغ (ریال)', 'money'], 'st' => ['وضعیت', fn($r) => ui_badge($r['st'], $r['stk']) . ($r['confirmed'] ? ' ' . ui_badge('تأییدِ خریدار', 'ok') : '')], 'pay' => 'پرداخت'], $rs, ['filter' => 1, 'href' => fn($r) => page_url('doc', ['id' => $r['id']])]));

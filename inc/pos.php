@@ -340,6 +340,11 @@ function return_commit(int $saleId, array $items, string $reason, string $method
         ledger_post('return', $rid);
         if ($s['channel_id']) channel_ledger_add((int)$s['channel_id'], -$refund, 'refund', 'return', $rid, 'برگشتِ ' . $s['number']);
         audit('sale_returns', $rid, 'create', null, ['sale' => $s['number'], 'amount' => $refund, 'reason' => $reason], 'مرجوعی');
+        // اگر این فروش فاکتورِ ثبت‌شده دارد، سندِ «برگشت از فروش» با همان مقدارها صادر می‌شود (crBuild اینورا)
+        $inv = row("SELECT id, `lines` FROM docs WHERE sale_id=? AND kind IN ('invoice','official') AND status='issued' ORDER BY id LIMIT 1", [$saleId]);
+        if ($inv) { $qs = []; $map = []; foreach (rows("SELECT sale_item_id, qty FROM sale_return_items WHERE return_id=?", [$rid]) as $x) $map[(int)$x['sale_item_id']] = (int)$x['qty'];
+            foreach (json_decode($inv['lines'], true) ?: [] as $i => $l) if (!empty($l['sale_item_id']) && isset($map[(int)$l['sale_item_id']])) { $sc = max(1, (int)unit_of((int)val("SELECT unit_id FROM products WHERE id=?", [$l['product_id']]) ?: null)['scale']); $qs[$i] = $map[(int)$l['sale_item_id']] / $sc; }
+            if ($qs) doc_credit_create((int)$inv['id'], $qs, $reason); }
         do_action('sale_returned', $rid, $saleId);
         return $rid;
     });

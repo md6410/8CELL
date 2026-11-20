@@ -6,6 +6,7 @@ declare(strict_types=1);
 function sms_tpl_catalog(): array {
     return apply_filters('sms_tpl_catalog', [
         'otp' => ['کدِ ورود (خطِ آخرِ الگو: @دامنه #VERIFICATIONCODE#)', ['NAME', 'CODE', 'VERIFICATIONCODE'], ['CODE', 'VERIFICATIONCODE']],
+        'vcode' => ['رمزِ دیدنِ سند (QRِ اصالت)', ['NAME', 'CODE', 'VERIFICATIONCODE'], ['CODE', 'VERIFICATIONCODE']],
         'sale_receipt' => ['رسیدِ فروش (پیامکِ نهایی)', ['NAME', 'NUMBER', 'AMOUNT', 'LINK'], ['NUMBER', 'AMOUNT', 'LINK']],
         'doc_link' => ['لینکِ فاکتور', ['NAME', 'NUMBER', 'LINK'], ['NUMBER', 'LINK']],
         'credit_due' => ['یادآوریِ بدهی', ['NAME', 'AMOUNT'], ['AMOUNT']],

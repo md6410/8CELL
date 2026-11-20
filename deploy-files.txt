@@ -3,6 +3,9 @@
 api.php
 assets/app.css
 assets/app.js
+assets/doc-editor.js
+assets/doc-paper.js
+assets/doc.css
 assets/fonts/Vazirmatn.woff2
 assets/label.js
 assets/pos.js

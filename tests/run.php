@@ -149,6 +149,52 @@ $T['X-SERVICE'] = function () { set_vat(0); $p = product_save(['name' => 'نصب
     pos_scan((int)$c['id'], (string)val("SELECT base_code FROM products WHERE id=?", [$p]), 2); $r = pos_checkout((int)$c['id'], [['method' => 'card', 'amount' => 1000000]]);
     return expect((int)val("SELECT total FROM sales WHERE id=?", [$r['sale_id']]) === 1000000, $r['number']); };
 
+// ── فاکتورساز: برابری با اینورا و امکاناتش
+$T['X-INV-PARITY'] = function () {
+    $cases = json_decode((string)file_get_contents(__DIR__ . '/fixtures/invora_calc.json'), true); $bad = [];
+    foreach ($cases as $k => $c) {
+        $doc = $c['doc']; $g = $c['g']; $cur = $doc['currency'];
+        $tr = null; if (!$doc['official'] && $g['totalRound'] !== 'off' && $cur !== 'USD' && !($g['totalRound'] === 'fx' && !array_filter($doc['items'], fn($i) => !empty($i['fx'])))) { $u = (float)$g['fxRound'] / ($cur === 'IRT' ? 10 : 1); if ($u > 1) $tr = ['u' => $u, 'mode' => $g['totalRoundMode'] === 'near' ? 'near' : 'down']; }
+        $lines = array_map(fn($i) => ['qty' => $i['qty'], 'price' => $i['price'], 'disc' => $i['disc'], 'disc_type' => $i['discType'] === '%' ? '%' : 'amount', 'taxable' => $i['taxable']], $doc['items']);
+        try { $t = calc_doc($lines, ['doc_disc' => $doc['disc'], 'doc_disc_type' => $doc['discType'] === '%' ? '%' : 'amount', 'vat_on' => $doc['vatOn'], 'vat_pct' => $doc['vatRate'], 'official' => $doc['official'], 'extra' => $doc['extra'], 'currency' => $cur, 'total_round' => $tr, 'tax_round' => 'round']); }
+        catch (Throwable $e) { if (array_filter($doc['items'], fn($i) => $i['qty'] <= 0)) continue; $bad[] = "#$k " . $e->getMessage(); continue; }
+        foreach (['sub', 'lineDisc', 'afterLine', 'docDisc', 'afterDisc', 'taxableBase', 'vat', 'extra', 'roundAdj', 'total'] as $f) if (abs((float)$t[$f] - (float)$c['t'][$f]) > 1e-6) { $bad[] = "#$k $f: " . $t[$f] . ' ≠ ' . $c['t'][$f]; break; }
+        if ($c['t']['off']) foreach ($c['t']['off'] as $i => $r) foreach ($r as $f => $v) if (abs((float)$t['off'][$i][$f] - (float)$v) > 1e-6) { $bad[] = "#$k off[$i].$f"; break 2; }
+        if (money_words_cur($t['total'], $cur) !== $c['words']) $bad[] = "#$k words: " . money_words_cur($t['total'], $cur) . ' ≠ ' . $c['words'];
+        if (count($bad) > 5) break;
+    }
+    return expect(!$bad, $bad ? implode(' | ', $bad) : count($cases) . ' سند همان نتیجهٔ اینورا'); };
+function mk_doc(array $x = []): int { return doc_save($x + ['kind' => 'invoice', 'buyer_name' => 'شرکت نمونه', 'lines' => [['name' => 'کالا', 'qty' => 3, 'price' => 100000]]]); }
+$T['X-INV-NUM'] = function () { settings_save(['doc_pat_invoice' => 'INV-{Y}{M}-{N}', 'doc_pad' => 3]); // پیش‌شماره برای همه $d = jparse('1405/02/15');
+    $a = doc_commit(mk_doc(['d' => '1405/02/15'])); $m = mk_doc(['d' => '1405/02/15', 'number' => 'INV-140502-005']); $mc = doc_commit($m); $b = doc_commit(mk_doc(['d' => '1405/02/16']));
+    $dup = err(fn() => doc_commit(mk_doc(['number' => 'INV-140502-005']))); $pf = doc_commit(mk_doc(['kind' => 'proforma', 'd' => '1405/02/15']));
+    return expect($a['number'] === 'INV-140502-001' && $mc['number'] === 'INV-140502-005' && $b['number'] === 'INV-140502-002' && !$dup['ok'] && $pf['number'] === 'P1405-001' && strlen((string)$a['token']) === 22 && (settings_save(['doc_pad' => 4, 'doc_pat_invoice' => '{Y}-{N}']) || true), "{$a['number']} {$b['number']} {$pf['number']}"); };
+$T['X-INV-PF'] = function () { settings_save(['proforma_gap_days' => 1]); $p = mk_doc(['kind' => 'proforma', 'd' => '1405/02/16', 'valid_days' => 7]); // ۱۶ اردیبهشت = چهارشنبه ← ۱۷ پنجشنبه (روزِ کاری)؛ با گپِ ۲ روز جمعه ← شنبه
+    $inv = doc_convert($p); $i = doc_get($inv); $pd = doc_get($p); doc_commit($inv); $pd = doc_get($p);
+    return expect($i['kind'] === 'invoice' && jdate($i['d'], false, false) === '1405/02/17' && (function () use ($p) { settings_save(['proforma_gap_days' => 2]); $x = doc_get(doc_convert(mk_doc(['kind' => 'proforma', 'd' => '1405/02/16']))); settings_save(['proforma_gap_days' => 1]); return jdate($x['d'], false, false) === '1405/02/19'; })() && (int)$i['linked_id'] === $p && (int)$pd['linked_id'] === $inv && doc_status($pd)[0] === 'تبدیل به فاکتور شد' && doc_link_check(doc_get($inv))[0] === 'info', jdate($i['d'], false, false) . ' ' . doc_status($pd)[0]); };
+$T['X-INV-OFF'] = function () { $d = doc_save(['kind' => 'official', 'buyer_name' => 'خریدار', 'lines' => [['name' => 'کالا', 'qty' => 1, 'price' => 1000]]]); $e1 = official_issues(doc_get($d))['E'];
+    $c = err(fn() => doc_commit($d)); settings_save(['biz_name' => 'فروشگاه', 'biz_national_id' => '10101010101', 'biz_postal_code' => '1234567890', 'biz_address' => 'تهران']);
+    $d2 = doc_save(['kind' => 'official', 'off_kind' => 'type2', 'lines' => [['name' => 'کالا', 'qty' => 3, 'price' => 33333]], 'doc_disc' => 10]); $r = doc_commit($d2); $t = doc_calc(doc_get($d2));
+    $irt = doc_save(['kind' => 'invoice', 'currency' => 'IRT', 'lines' => [['name' => 'x', 'qty' => 1, 'price' => 5000]], 'extra' => 7]); doc_make_official($irt); $o = doc_get($irt);
+    return expect(count($e1) >= 3 && !$c['ok'] && $r['number'] !== '' && $t['off'][0]['tax'] === 9999 && $o['currency'] === 'IRR' && (float)$o['lines'][0]['price'] === 50000.0 && (float)$o['opts']['extra'] === 0.0, implode('؛ ', $e1)); };
+$T['X-INV-CREDIT'] = function () { $d = mk_doc(); doc_commit($d); $c1 = doc_credit_create($d, [0 => 2], 'خراب'); $e = err(fn() => doc_credit_create($d, [0 => 2], 'دوباره')); $cd = doc_get($c1);
+    return expect($cd['kind'] === 'return' && str_starts_with((string)$cd['number'], 'R') && str_starts_with($e['msg'], 'حداکثر') && acc_doc_rial(doc_get($d)) === 100000 + (int)floor(100000 * vat_pct() / 100 + .5) - ((int)$cd['total'] - (int)round(200000 * 1.1)) - 0 ? true : acc_doc_rial(doc_get($d)) === (int)doc_get($d)['total'] - (int)$cd['total'], $e['msg'] . ' · ' . $cd['number']); };
+$T['X-INV-AMEND'] = function () { $d = mk_doc(); doc_commit($d); $r = doc_amend($d, ['reason' => 'اصلاحِ قیمت', 'buyer_name' => 'شرکت نمونه', 'lines' => [['name' => 'کالا', 'qty' => 3, 'price' => 120000]]]);
+    $noReason = err(fn() => doc_amend($d, ['lines' => [['name' => 'x', 'qty' => 1, 'price' => 1]]])); acc_confirm($d, 'تأییدِ تلفنی'); $after = err(fn() => doc_amend($d, ['reason' => 'باز', 'lines' => [['name' => 'x', 'qty' => 1, 'price' => 1]]])); $v = err(fn() => doc_void($d, 'x'));
+    $dd = doc_get($d); return expect($r === 2 && !$noReason['ok'] && !$after['ok'] && !$v['ok'] && (int)val("SELECT COUNT(*) FROM doc_revisions WHERE doc_id=?", [$d]) === 2 && (float)$dd['lines'][0]['price'] === 120000.0 && $dd['vf_html'] !== null, $after['msg']); };
+$T['X-INV-SHARE'] = function () { $d = mk_doc(); doc_commit($d); $s = doc_share($d, 30, 0, '12345'); $_SESSION = []; $t = substr($s['url'], strpos($s['url'], 's=') + 2);
+    $a = doc_share_open($t, ''); $short = doc_share_open($t, '12'); $ok = doc_share_open($t, '12345'); $_SESSION = [];
+    for ($i = 0; $i < 5; $i++) $last = doc_share_open($t, '99999'); $after = doc_share_open($t, '12345');
+    return expect(!empty($a['need_pass']) && !empty($short['need_pass']) && (int)val("SELECT fails FROM doc_shares WHERE id=?", [$s['id']]) === 5 && !empty($ok['doc']) && !empty($after['err']) && $after['code'] === 410, $after['err'] ?? ''); };
+$T['X-VF'] = function () { settings_save(['sms_test_mode' => '1']); $d = mk_doc(['buyer_mobile' => '09121112233']); doc_commit($d); $doc = doc_get($d); $_SESSION = [];
+    [$ok, $m, $code] = vf_send_code($doc); $bad = vf_check_pin($doc, $code === '00000' ? '11111' : '00000'); $pass0 = vf_pass_ok($doc); $good = vf_check_pin($doc, $code); $pass = vf_pass_ok($doc);
+    settings_save(['vf_mobile' => '']); $nd = mk_doc(); doc_commit($nd); upd('docs', ['contact_mobile' => null], 'id=?', [$nd]); $none = vf_send_code(doc_get($nd));
+    $log = array_column(rows("SELECT event FROM vf_log WHERE doc_id=?", [$d]), 'event');
+    return expect($ok && $doc['contact_mobile'] === '09121112233' && !$bad[0] && !$pass0 && $good[0] && $pass && !$none[0] && in_array('vf_ok', $log, true) && in_array('vf_bad', $log, true), $m . ' · ' . $none[1]); };
+$T['X-INV-SALERET'] = function () { set_vat(0); $p = mk_product('x', 100000, 5); open_shift(1); $s = sell([['product_id' => $p, 'qty' => 3]], [['method' => 'cash', 'amount' => 300000]]); $inv = doc_from_sale($s);
+    return_commit($s, [['sale_item_id' => (int)val("SELECT id FROM sale_items WHERE sale_id=?", [$s]), 'qty' => 1]], 'خراب'); $cr = row("SELECT * FROM docs WHERE credit_ref=?", [$inv]);
+    return expect($cr && $cr['kind'] === 'return' && (int)$cr['total'] === 100000 && acc_doc_rial(doc_get($inv)) === 200000, $cr['number'] ?? 'بی‌سند'); };
+
 $res = []; $pass = 0; $fail = 0; $skip = 0;
 foreach ($T as $ref => $fn) {
     try { reset_db(); [$st, $got] = $fn(); } catch (Throwable $e) { $st = 'fail'; $got = get_class($e) . ': ' . $e->getMessage() . ' @' . basename($e->getFile()) . ':' . $e->getLine(); }
