@@ -4,26 +4,17 @@ declare(strict_types=1);
 
 function wh_ownerships(): array { return ['O' => 'خریداری‌شده', 'C' => 'امانی (فروشنده)']; }
 function wh_get(int $id): ?array { return row("SELECT * FROM warehouses WHERE id=?", [$id]); }
-/** کدِ کامل (۲۷) = کدِ کالا/ترکیب (۲۰) + فروشنده (۲) + مالکیت (۱) + انبار (۴) */
-function wh_lot_code(string $item20, string $seller, string $own, string $wh4): string { return $item20 . substr(sprintf('%02s', $seller), 0, 2) . $own . $wh4; }
-function wh_parse_code(string $code): array {
-    $code = strtoupper($code); $n = strlen($code);
-    $o = ['len' => $n, 'cat' => substr($code, 0, 4), 'type' => substr($code, 4, 3), 'pid' => (int)substr($code, 7, 11), 'vcode' => substr($code, 18, 2)];
-    if ($n >= 27) { $o += ['seller' => substr($code, 20, 2), 'own' => substr($code, 22, 1), 'wh' => substr($code, 23, 4), 'lot_code' => substr($code, 0, 27)]; }
-    if ($n == 33) $o['serial'] = substr($code, 27, 6);
-    return $o;
-}
-function unit_parse(string $code): ?array { return strlen($code) == 33 ? wh_parse_code($code) : null; }
-function wh_pretty_code(string $c): string { $c = strtoupper($c); return trim(implode(' ', array_filter([substr($c, 0, 4), substr($c, 4, 3), substr($c, 7, 11), substr($c, 18, 2), substr($c, 20, 2), substr($c, 22, 1), substr($c, 23, 4), substr($c, 27, 6)], 'strlen'))); }
-
+/** کدِ کالا/ترکیب (SKU) */
 function wh_item20(int $pid, ?int $vid): string {
     if ($vid) { $c = val("SELECT code FROM product_variants WHERE id=? AND product_id=?", [$vid, $pid]); if ($c) return $c; }
     $c = val("SELECT base_code FROM products WHERE id=?", [$pid]); if (!$c) throw new UserError('کالا یافت نشد'); return $c;
 }
 /** محموله (کالا × انبار × فروشنده × مالکیت) را بیاب یا بساز؛ بهای واحد با میانگینِ متحرک */
-function wh_lot_ensure(int $pid, ?int $vid, int $whId, string $seller = '00', string $own = 'O', ?int $supplierId = null): array {
+function wh_lot_ensure(int $pid, ?int $vid, int $whId, string $seller = '', string $own = 'O', ?int $supplierId = null): array {
     $w = wh_get($whId); if (!$w) throw new UserError('انبار یافت نشد');
-    $code = wh_lot_code(wh_item20($pid, $vid), $seller, $own, $w['code']);
+    $seller = $own === 'O' ? own_seller_code() : seller_code_clean($seller);
+    if ($own === 'C' && ($seller === '' || $seller === own_seller_code())) throw new UserError('برای کالای امانی کدِ فروشنده (۱ تا ۴ نویسهٔ لاتین، غیر از کدِ خودِ فروشگاه) لازم است');
+    $code = lot_code(wh_item20($pid, $vid), $seller, $w['code']);
     $l = row("SELECT * FROM lots WHERE code=?", [$code]);
     if ($l) return $l;
     $id = ins('lots', ['product_id' => $pid, 'variant_id' => $vid, 'warehouse_id' => $whId, 'seller_code' => $seller, 'ownership' => $own, 'code' => $code, 'supplier_id' => $supplierId, 'created_at' => now()]);
@@ -44,7 +35,7 @@ function wh_units_add(int $lotId, int $qty, array $opt = []): array {
     $n = (int)val("SELECT COUNT(*) FROM wh_units WHERE lot_id=?", [$lotId]);
     for ($i = 0; $i < $qty; $i++) {
         $n++;
-        $code = $lot['code'] . str_pad(strtoupper(base_convert((string)$n, 10, 36)), 6, '0', STR_PAD_LEFT);
+        $code = unit_code($lot['code'], $n);
         ins('wh_units', ['lot_id' => $lotId, 'code' => $code, 'status' => $opt['status'] ?? 'labeled', 'unit_cost' => (int)($opt['unit_cost'] ?? $lot['unit_cost']), 'created_at' => now(), 'in_at' => ($opt['status'] ?? '') === 'in_stock' ? now() : null]);
         $codes[] = $code;
     }
@@ -61,7 +52,7 @@ function wh_lot_cost_in(array $lot, int $qty, int $unitCost): void {
 function wh_stock_in(string $code, int $qty = 1, array $opt = []): array {
     $code = strtoupper(trim($code));
     return tx(function () use ($code, $qty, $opt) {
-        if (strlen($code) == 33) {
+        if (code_level($code) === 'unit') {
             $u = wh_unit_by_code($code);
             if (!$u) throw new UserError('این کد تعریف نشده است');
             if ($u['status'] === 'in_stock') { $w = wh_get((int)$u['warehouse_id']); throw new UserError('این دانه قبلاً وارد شده و در «' . ($w['name'] ?? '') . '» است'); }
@@ -73,7 +64,7 @@ function wh_stock_in(string $code, int $qty = 1, array $opt = []): array {
             do_action('stock_changed', (int)$lot['product_id'], $lot['variant_id'] ? (int)$lot['variant_id'] : null); catalog_touch((int)$lot['product_id']);
             return ['lot' => $lot['code'], 'unit' => $code, 'qty' => 1];
         }
-        $lot = row("SELECT l.*, p.serial FROM lots l JOIN products p ON p.id=l.product_id WHERE l.code=?", [substr($code, 0, 27)]);
+        $lot = row("SELECT l.*, p.serial FROM lots l JOIN products p ON p.id=l.product_id WHERE l.code=?", [$code]);
         if (!$lot) throw new UserError('این کد تعریف نشده است');
         if ($qty < 1) throw new UserError('تعداد باید مثبت باشد');
         $cost = (int)($opt['unit_cost'] ?? $lot['unit_cost']);
@@ -259,8 +250,8 @@ function stock_loss(array $in): int {
     }
     $code = strtoupper(scan_normalize((string)($in['code'] ?? ''))); $qty = max(1, to_int($in['qty'] ?? 1));
     return tx(function () use ($kind, $reason, $code, $qty, $in) {
-        if (strlen($code) == 33) { $u = wh_unit_by_code($code); if (!$u) throw new UserError('این کد تعریف نشده است'); $lot = row("SELECT * FROM lots WHERE id=?", [$u['lot_id']]); $sel = ['unit_code' => $code]; $qty = 1; }
-        else { $lot = row("SELECT * FROM lots WHERE code=?", [substr($code, 0, 27)]); if (!$lot) throw new UserError('کدِ محموله یافت نشد'); $sel = ['lot_id' => (int)$lot['id']]; }
+        if (code_level($code) === 'unit') { $u = wh_unit_by_code($code); if (!$u) throw new UserError('این کد تعریف نشده است'); $lot = row("SELECT * FROM lots WHERE id=?", [$u['lot_id']]); $sel = ['unit_code' => $code]; $qty = 1; }
+        else { $lot = row("SELECT * FROM lots WHERE code=?", [$code]); if (!$lot) throw new UserError('کدِ محموله یافت نشد'); $sel = ['lot_id' => (int)$lot['id']]; }
         $out = wh_stock_out($sel, $qty, ['kind' => $kind, 'note' => $reason, 'ref_type' => 'loss']);
         $amount = 0; foreach ($out as $o) $amount += $o['cost'] * $o['qty'];
         $bearer = $lot['ownership'] === 'C' ? (($in['bearer'] ?? 'seller') === 'store' ? 'store' : 'seller') : 'store';
@@ -268,7 +259,7 @@ function stock_loss(array $in): int {
             'confirmed_by' => current_user()['id'] ?? null, 'created_at' => now()]);
         q("UPDATE stock_moves SET ref_id=? WHERE ref_type='loss' AND ref_id IS NULL AND lot_id=?", [$id, $lot['id']]);
         if ($kind === 'buyout') { // خریدِ فروشگاه از انبارِ امانیِ فروشنده: خروج از C + ورود به O
-            $own = wh_lot_ensure((int)$lot['product_id'], $lot['variant_id'] ? (int)$lot['variant_id'] : null, (int)$lot['warehouse_id'], '00', 'O');
+            $own = wh_lot_ensure((int)$lot['product_id'], $lot['variant_id'] ? (int)$lot['variant_id'] : null, (int)$lot['warehouse_id'], '', 'O');
             $price = to_int($in['price'] ?? 0) ?: (int)round($amount / max(1, $qty));
             foreach ($out as $o) {
                 if ($o['unit_id']) { // دانه با هویتِ تازه در محمولهٔ خریداری‌شده

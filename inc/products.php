@@ -5,17 +5,15 @@ declare(strict_types=1);
 function wh_item_types(): array { return ['SAL' => 'کالای فروشی', 'CIR' => 'کالای درگردش (امانی/برگشت‌پذیر)', 'REP' => 'قطعه و خدماتِ تعمیر', 'IMP' => 'مصرفیِ داخلی']; }
 function wh_site_types(): array { return ['SAL', 'CIR', 'REP']; } // نوع‌هایی که قابلِ فروش‌اند
 function product_type_groups(): array { return ['فروش' => ['SAL'], 'درگردش' => ['CIR'], 'خدمات' => ['REP'], 'داخلی' => ['IMP']]; }
-function wh_cat_code_valid(string $c): bool { return (bool)preg_match('/^[A-Z0-9]{4}$/', $c); }
+function wh_cat_code_valid(string $c): bool { return (bool)preg_match('/^[A-Z]{4}$/', $c); }
 function wh_suggest_cat_code(string $name): string {
     $map = ['ا' => 'A', 'آ' => 'A', 'ب' => 'B', 'پ' => 'P', 'ت' => 'T', 'ث' => 'S', 'ج' => 'J', 'چ' => 'C', 'ح' => 'H', 'خ' => 'K', 'د' => 'D', 'ذ' => 'Z', 'ر' => 'R', 'ز' => 'Z', 'ژ' => 'J', 'س' => 'S', 'ش' => 'S',
         'ص' => 'S', 'ض' => 'Z', 'ط' => 'T', 'ظ' => 'Z', 'ع' => 'A', 'غ' => 'G', 'ف' => 'F', 'ق' => 'Q', 'ک' => 'K', 'گ' => 'G', 'ل' => 'L', 'م' => 'M', 'ن' => 'N', 'و' => 'V', 'ه' => 'H', 'ی' => 'Y', 'ي' => 'Y', 'ك' => 'K'];
-    $s = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', strtr($name, $map)));
+    $s = strtoupper(preg_replace('/[^A-Za-z]/', '', strtr($name, $map)));
     $s = substr($s . 'XXXX', 0, 4); $base = $s; $i = 1;
-    while (val("SELECT id FROM categories WHERE code=?", [$s])) $s = substr($base, 0, 2) . sprintf('%02d', $i++);
+    while (val("SELECT id FROM categories WHERE code=?", [$s]) && $i < 676) { $s = substr($base, 0, 2) . chr(65 + intdiv($i, 26)) . chr(65 + $i % 26); $i++; }
     return $s;
 }
-/** کدِ پایه (۲۰): دسته(۴) + نوع(۳) + شناسه(۱۱) + ترکیب(۲، «00» = بی‌ترکیب) */
-function wh_item_code(string $cat, string $type, int $pid, string $v = '00'): string { return $cat . $type . sprintf('%011d', $pid) . $v; }
 function unit_of(?int $uid): array { static $c = []; if (!$uid) return ['id' => 0, 'name' => 'عدد', 'scale' => 1, 'sub_name' => '']; return $c[$uid] ??= (row("SELECT * FROM units WHERE id=?", [$uid]) ?: ['id' => 0, 'name' => 'عدد', 'scale' => 1, 'sub_name' => '']); }
 /** مرزِ واحد: ورودیِ کاربر (۱٫۵ کیلو) ← عددِ صحیحِ پایه (۱۵۰۰ گرم) */
 function qty_in($v, ?int $unitId): int { $u = unit_of($unitId); return (int)round(to_float($v) * (int)$u['scale']); }
@@ -49,8 +47,8 @@ function product_save(array $in): int {
             if ((int)$old['category_id'] !== (int)$d['category_id'] || $old['item_type'] !== $d['item_type']) {
                 if (val("SELECT 1 FROM stock_moves WHERE product_id=? LIMIT 1", [$id])) throw new UserError('کدِ خانوادهٔ کالایی که گردشِ انبار دارد عوض نمی‌شود');
                 $c = val("SELECT code FROM categories WHERE id=?", [$d['category_id']]);
-                $d['base_code'] = wh_item_code($c, $d['item_type'], $id);
-                foreach (product_variants($id) as $v) upd('product_variants', ['code' => wh_item_code($c, $d['item_type'], $id, $v['vcode'])], 'id=?', [$v['id']]);
+                $d['base_code'] = code_family_next(code_type_for_item_type($d['item_type']), $c);
+                foreach (product_variants($id) as $v) upd('product_variants', ['code' => sku_build($d['base_code'], ['VAR' => $v['vcode']])], 'id=?', [$v['id']]);
             }
             $d['updated_at'] = now();
             upd('products', $d, 'id=?', [$id]);
@@ -61,7 +59,7 @@ function product_save(array $in): int {
             $d['price'] = $price; $d['created_at'] = now(); $d['link_token'] = substr(bin2hex(random_bytes(8)), 0, 16);
             $id = ins('products', $d);
             $c = val("SELECT code FROM categories WHERE id=?", [$d['category_id']]);
-            upd('products', ['base_code' => wh_item_code($c, $d['item_type'], $id)], 'id=?', [$id]);
+            upd('products', ['base_code' => code_family_next(code_type_for_item_type($d['item_type']), $c)], 'id=?', [$id]);
             audit('products', $id, 'create', null, ['name' => $d['name'], 'price' => $price], 'کالای تازه');
             catalog_touch($id);
         }
@@ -69,12 +67,14 @@ function product_save(array $in): int {
         return $id;
     });
 }
-function variant_add(int $pid, string $title, int $delta = 0, ?string $barcode = null): int {
+/** ترکیب با کدِ محور (VAR.<۲ تا ۶ نویسه>)؛ کدِ خالی ← شمارهٔ بعدی (01، 02…) */
+function variant_add(int $pid, string $title, int $delta = 0, ?string $barcode = null, string $vcode = ''): int {
     $p = product_get($pid); if (!$p) throw new UserError('کالا یافت نشد');
-    $n = (int)val("SELECT MAX(CAST(vcode AS UNSIGNED)) FROM product_variants WHERE product_id=?", [$pid]) + 1;
-    if ($n > 99) throw new UserError('بیش از ۹۹ ترکیب ممکن نیست');
-    $vc = sprintf('%02d', $n);
-    $id = ins('product_variants', ['product_id' => $pid, 'vcode' => $vc, 'title' => trim($title), 'code' => wh_item_code($p['cat_code'], $p['item_type'], $pid, $vc), 'barcode' => $barcode, 'price_delta' => $delta]);
+    $vc = strtoupper(preg_replace('/[^A-Za-z0-9]/', '', en_num($vcode)));
+    if ($vc === '') { $n = (int)val("SELECT COUNT(*) FROM product_variants WHERE product_id=?", [$pid]) + 1; do { $vc = sprintf('%02d', $n++); } while (val("SELECT 1 FROM product_variants WHERE product_id=? AND vcode=?", [$pid, $vc])); }
+    if (!code_axis_value_valid($vc)) throw new UserError('کدِ ترکیب ۲ تا ۶ حرف/رقمِ لاتین است');
+    if (val("SELECT 1 FROM product_variants WHERE product_id=? AND vcode=?", [$pid, $vc])) throw new UserError('این کدِ ترکیب برای این کالا هست');
+    $id = ins('product_variants', ['product_id' => $pid, 'vcode' => $vc, 'title' => trim($title), 'code' => sku_build($p['base_code'], ['VAR' => $vc]), 'barcode' => $barcode, 'price_delta' => $delta]);
     audit('product_variants', $id, 'create', null, ['title' => $title], 'ترکیبِ ' . $p['name']);
     return $id;
 }

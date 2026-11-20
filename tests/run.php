@@ -124,10 +124,22 @@ $T['X-WHOPS'] = function () { set_vat(0); $p = mk_product('دستگاه', 5000, 
     $s = row("SELECT * FROM sales WHERE id=?", [$r['sale_id']]); return expect(!$no['ok'] && !$dup['ok'] && $s['fulfil'] === 'shipped' && (int)$s['cost'] === 3000 && wh_unit_by_code($c[1])['status'] === 'out' && stock_on_hand($p) === 1, $s['fulfil'] . ' cost=' . $s['cost']); };
 $T['X-GUARD'] = function () { $p = mk_product('x', 100000); q("UPDATE products SET price_guard_pct=30 WHERE id=?", [$p]); product_price_set($p, 110000); $a = (int)val("SELECT active FROM products WHERE id=?", [$p]); product_price_set($p, 200000); $b = (int)val("SELECT active FROM products WHERE id=?", [$p]); return expect($a === 1 && $b === 0, "$a/$b"); };
 $T['X-DUP'] = function () { $p = mk_product('ژله', 1000); variant_add($p, 'توت‌فرنگی'); variant_add($p, 'پرتقال'); $d = product_duplicate($p, 'ژلهٔ ویژه'); $a = product_get($p); $b = product_get($d);
-    return expect($a['base_code'] !== $b['base_code'] && count(product_variants($d)) === 2 && strlen($b['base_code']) === 20, $b['base_code']); };
+    return expect($a['base_code'] !== $b['base_code'] && count(product_variants($d)) === 2 && code_family_valid($b['base_code']) && product_variants($d)[0]['code'] === $b['base_code'] . '-VAR.01', $b['base_code']); };
 $T['X-ACCSHARE'] = function () { ins('acc_partners', ['name' => 'الف', 'coef' => 2]); ins('acc_partners', ['name' => 'ب', 'coef' => 1]); $ym = str_replace('/', '-', jym(today())); ins('acc_expenses', ['title' => 'اجاره', 'amount' => 1000, 'monthly' => 1, 'from_ym' => $ym, 'created_at' => now()]);
     $doc = ins('docs', ['kind' => 'invoice', 'status' => 'issued', 'd' => today(), 'lines' => '[]', 'buyer' => '{"name":"x"}', 'total' => 2001, 'confirmed' => 1, 'created_at' => now()]); doc_pay_add($doc, 2001, today());
     $c = acc_calc(); $e = array_column($c['partners'], 'earned', 'name'); return expect($e['الف'] === 668 && $e['ب'] === 333, json_encode($e, JSON_UNESCAPED_UNICODE)); };
+
+$T['X-CODE'] = function () { $p = mk_product('گوشی', 1000); $v = variant_add($p, 'قرمز', 0, null, 'red'); $lot = wh_lot_ensure($p, $v, 1); $u = wh_units_add((int)$lot['id'], 2);
+    $s = supplier_save(['name' => 'امانت‌گذار', 'seller_code' => 'ab1']); $c = wh_lot_ensure($p, null, 1, 'AB1', 'C', $s); $bad = err(fn() => wh_lot_ensure($p, null, 1, '', 'C'));
+    $pu = unit_parse($u[1]); $ok = $lot['code'] === 'SL-GENR-00001-VAR.RED/OWN.TH01' && $u[1] === $lot['code'] . '/000002' && $pu['level'] === 'unit' && $pu['seq'] === 2 && $pu['store'] === 'TH01'
+        && code_level($lot['code']) === 'lot' && $c['code'] === 'SL-GENR-00001/AB1.TH01' && !$bad['ok'] && scan_lookup($u[0])['type'] === 'unit' && scan_lookup($lot['code'])['type'] === 'lot' && scan_lookup('SL-GENR-00001-VAR.RED')['type'] === 'variant';
+    return expect($ok, $u[1] . ' · ' . $c['code']); };
+
+$T['X-HOLIDAY'] = function () { $j = json_encode([['event_name' => 'تاسوعا', 'is_holiday' => true, 'date' => ['type' => 'shamsi', 'date' => ['۴', 'تیر']]], ['event_name' => 'x', 'date' => ['type' => 'hijri', 'date' => [9, 1]]]], JSON_UNESCAPED_UNICODE);
+    $r = hol_parse($j); $d = jparse('1405/04/04'); holidays_import([['d' => $d, 'title' => 'تاسوعا']], 'online'); $a = holiday_info($d)['off']; ins('holidays', ['d' => $d, 'title' => 'لغو', 'source' => 'manual', 'is_off' => 0]); $b = holiday_info($d)['off'];
+    return expect(count($r) === 1 && $r[0]['jm'] === 4 && $r[0]['jd'] === 4 && $a && !$b, json_encode($r, JSON_UNESCAPED_UNICODE)); };
+$T['X-FX'] = function () { $n = fx_parse_navasan('{"usd_sell":{"value":"95,000"}}', 'toman')['USD'] ?? 0; $t = fx_parse_tgju_profile('{"summary":{"price":{"plain":"960,000"}},"info":{"currency_unit":"ریال"}}');
+    $p = fx_pick($n, $t, 20); $bad = fx_pick(950000, 95000, 20); return expect($n === 950000 && $t === 960000 && $p['rate'] === 960000 && $bad['rate'] === 0, "$n $t {$p['rate']}"); };
 
 $res = []; $pass = 0; $fail = 0; $skip = 0;
 foreach ($T as $ref => $fn) {

@@ -21,8 +21,9 @@ function scan_lookup(string $code): array {
     if ($code === '') return $none;
     $try = function (string $sql, array $p) { try { return row($sql, $p); } catch (Throwable $e) { return null; } };
     $r = null;
-    if (strlen($code) == 33 && ($r = $try("SELECT u.*, l.product_id, l.variant_id, l.warehouse_id FROM wh_units u JOIN lots l ON l.id=u.lot_id WHERE u.code=?", [$code]))) $res = ['type' => 'unit', 'row' => $r];
-    elseif (strlen($code) == 27 && ($r = $try("SELECT * FROM lots WHERE code=?", [$code]))) $res = ['type' => 'lot', 'row' => $r];
+    $lv = code_level($code);
+    if ($lv === 'unit' && ($r = $try("SELECT u.*, l.product_id, l.variant_id, l.warehouse_id FROM wh_units u JOIN lots l ON l.id=u.lot_id WHERE u.code=?", [$code]))) $res = ['type' => 'unit', 'row' => $r];
+    elseif ($lv === 'lot' && ($r = $try("SELECT * FROM lots WHERE code=?", [$code]))) $res = ['type' => 'lot', 'row' => $r];
     elseif ($r = $try("SELECT * FROM product_variants WHERE code=?", [$code])) $res = ['type' => 'variant', 'row' => $r];
     elseif ($r = $try("SELECT * FROM product_variants WHERE barcode=?", [$code])) $res = ['type' => 'variant', 'row' => $r];
     elseif ($r = $try("SELECT * FROM products WHERE base_code=?", [$code])) $res = ['type' => 'product', 'row' => $r];

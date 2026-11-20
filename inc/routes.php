@@ -68,7 +68,7 @@ function api_routes(): array {
         // کالا
         'product_save' => ['products.edit', fn($in) => ['id' => product_save($in)], 'POST'],
         'product_price' => ['prices.edit', function ($in) { product_price_set((int)$in['id'], to_int($in['price'])); return ['ok' => true]; }, 'POST'],
-        'variant_add' => ['products.edit', fn($in) => ['id' => variant_add((int)$in['product_id'], (string)$in['title'], to_int($in['price_delta'] ?? 0), trim((string)($in['barcode'] ?? '')) ?: null)], 'POST'],
+        'variant_add' => ['products.edit', fn($in) => ['id' => variant_add((int)$in['product_id'], (string)$in['title'], to_int($in['price_delta'] ?? 0), trim((string)($in['barcode'] ?? '')) ?: null, (string)($in['vcode'] ?? ''))], 'POST'],
         'product_duplicate' => ['products.edit', fn($in) => ['id' => product_duplicate((int)$in['id'], (string)($in['name'] ?? ''))], 'POST'],
         'product_link_sms' => ['products.view', fn($in) => plink_send_sms((int)$in['id'], (string)$in['mobile'], (string)($in['name'] ?? '')), 'POST'],
         'product_search' => ['login', fn($in) => array_map(fn($p) => product_card((int)$p['id']) + ['variants' => product_variants((int)$p['id'])], product_search((string)($in['q'] ?? ''))), 'GET'],
@@ -178,8 +178,8 @@ function api_password_change(array $in): array {
 /** فقط کلیدهای مجاز ذخیره می‌شوند */
 function api_settings_save(array $in): array {
     $allowed = ['vat_pct', 'tax_round', 'total_round', 'doc_pattern', 'fx_round', 'sms_test_mode', 'sms_retry_max', 'smsir_api_key', 'update_repo', 'update_branch', 'update_auto', 'update_interval', 'update_token', 'base_url',
-        'reserve_minutes', 'staff_debt_pct', 'staff_debt_cap', 'shortage_to_staff', 'holiday_rule', 'thursday_off', 'holiday_url', 'rate_url', 'rate_path', 'rate_unit', 'scan_sound', 'captcha_after', 'sess_ttl_min',
-        'pos_require_unit', 'loss_sms_confirm', 'channel_price_tolerance', 'hr_rules', 'labor_rates'];
+        'reserve_minutes', 'staff_debt_pct', 'staff_debt_cap', 'shortage_to_staff', 'holiday_rule', 'thursday_off', 'holiday_url', 'fx_nav_key', 'fx_nav_unit', 'fx_max_gap', 'scan_sound', 'captcha_after', 'sess_ttl_min',
+        'pos_require_unit', 'loss_sms_confirm', 'own_seller_code', 'sms_otp_ttl', 'sms_otp_cooldown', 'sms_otp_domain', 'sms_retry_gap', 'channel_price_tolerance', 'hr_rules', 'labor_rates'];
     $s = [];
     foreach ($allowed as $k) if (array_key_exists($k, $in)) { if (in_array($k, ['smsir_api_key', 'update_token'], true) && $in[$k] === '') continue; $s[$k] = is_array($in[$k]) ? $in[$k] : trim((string)$in[$k]); }
     if (isset($s['hr_rules'])) $s['hr_rules'] = array_map(fn($v) => is_numeric(en_num((string)$v)) ? to_float($v) : $v, $s['hr_rules']);
@@ -193,12 +193,12 @@ function api_ext_upload(): array {
 }
 function api_stock_out(array $in): array {
     $code = scan_normalize((string)$in['code']); $qty = max(1, to_int($in['qty'] ?? 1));
-    $sel = strlen($code) == 33 ? ['unit_code' => $code] : ['lot_id' => (int)val("SELECT id FROM lots WHERE code=?", [substr($code, 0, 27)])];
+    $sel = code_level($code) === 'unit' ? ['unit_code' => $code] : ['lot_id' => (int)val("SELECT id FROM lots WHERE code=?", [$code])];
     if (empty($sel['unit_code']) && empty($sel['lot_id'])) throw new UserError('این کد تعریف نشده است');
     return ['out' => wh_stock_out($sel, $qty, ['kind' => 'out', 'note' => $in['note'] ?? 'خروجِ دستی', 'ref_type' => 'manual'])];
 }
 function api_lot_create(array $in): array {
-    $lot = wh_lot_ensure((int)$in['product_id'], (int)($in['variant_id'] ?? 0) ?: null, (int)$in['warehouse_id'], (string)($in['seller_code'] ?? '00'), ($in['ownership'] ?? 'O') === 'C' ? 'C' : 'O', (int)($in['supplier_id'] ?? 0) ?: null);
+    $lot = wh_lot_ensure((int)$in['product_id'], (int)($in['variant_id'] ?? 0) ?: null, (int)$in['warehouse_id'], (string)($in['seller_code'] ?? ''), ($in['ownership'] ?? 'O') === 'C' ? 'C' : 'O', (int)($in['supplier_id'] ?? 0) ?: null);
     $out = ['lot' => $lot];
     if (to_int($in['qty'] ?? 0) > 0) {
         $serial = (int)val("SELECT serial FROM products WHERE id=?", [$lot['product_id']]);
@@ -252,7 +252,7 @@ function crud_defs(): array {
         'branches' => ['شعبه‌ها', 'branches', 'settings.edit', ['name' => ['نام', 'text', 1], 'address' => ['نشانی', 'text'], 'phone' => ['تلفن', 'text'], 'default_wh_id' => ['انبارِ پیش‌فرض', 'select', 0, $wh], 'active' => ['فعال', 'check']]],
         'warehouses' => ['انبارها', 'warehouses', 'settings.edit', ['name' => ['نام', 'text', 1], 'branch_id' => ['شعبه', 'select', 0, $br], 'province' => ['استان', 'select', 1, fn() => wh_provinces()], 'num' => ['شمارهٔ انبار (۲ رقم)', 'text', 1], 'kind' => ['نوع', 'select', 0, fn() => ['own' => 'فروشگاه', 'seller' => 'فروشنده (امانی)']], 'active' => ['فعال', 'check']]],
         'cashboxes' => ['صندوق‌ها', 'cashboxes', 'settings.edit', ['name' => ['نام', 'text', 1], 'branch_id' => ['شعبه', 'select', 1, $br], 'pos_terminal' => ['کارت‌خوان', 'text'], 'bank_account_id' => ['حسابِ کارت‌خوان', 'select', 0, $bk], 'transfer_account_id' => ['حسابِ کارت‌به‌کارت', 'select', 0, $bk], 'active' => ['فعال', 'check']]],
-        'categories' => ['دسته‌های کالا', 'categories', 'products.edit', ['name' => ['نام', 'text', 1], 'code' => ['کدِ ۴ حرفیِ لاتین', 'text', 1]]],
+        'categories' => ['دسته‌های کالا', 'categories', 'products.edit', ['name' => ['نام', 'text', 1], 'code' => ['کدِ ۴ حرفِ لاتین (بی‌رقم، مثلِ PHON)', 'text', 1]]],
         'units' => ['واحدها', 'units', 'products.edit', ['name' => ['نام', 'text', 1], 'scale' => ['گام (۱ = صحیح، ۱۰۰۰ = سه رقمِ اعشار)', 'int', 1], 'sub_name' => ['نامِ زیرواحد', 'text']]],
         'grades' => ['گریدهای قیمت', 'grades', 'partner.manage', ['name' => ['نام', 'text', 1], 'kind' => ['نوع', 'select', 1, fn() => ['customer' => 'مشتری', 'partner' => 'همکار']], 'disc_pct' => ['تخفیفِ پیش‌فرض ٪', 'float']]],
         'acc_partners' => ['شرکا', 'acc_partners', 'acc.share', ['name' => ['نام', 'text', 1], 'coef' => ['ضریبِ سهم', 'float', 1], 'active' => ['فعال', 'check']]],
@@ -272,7 +272,7 @@ function crud_save(string $e, array $in): int {
         $d[$k] = $v === '' ? null : $v;
     }
     if ($e === 'warehouses') { $d['num'] = sprintf('%02d', to_int($d['num'])); $d['code'] = wh_code((string)$d['province'], $d['num']); if (val("SELECT id FROM warehouses WHERE code=? AND id<>?", [$d['code'], (int)($in['id'] ?? 0)])) throw new UserError('انباری با کدِ ' . $d['code'] . ' هست'); }
-    if ($e === 'categories') { $d['code'] = strtoupper((string)$d['code']); if (!wh_cat_code_valid($d['code'])) throw new UserError('کدِ دسته ۴ نویسهٔ لاتین/عدد است'); }
+    if ($e === 'categories') { $d['code'] = strtoupper((string)$d['code']); if (!wh_cat_code_valid($d['code'])) throw new UserError('کدِ دسته دقیقاً ۴ حرفِ لاتین است'); }
     if ($e === 'units' && $d['scale'] < 1) throw new UserError('گام دست‌کم ۱');
     if ($e === 'acc_expenses') $d['created_at'] = now();
     $id = (int)($in['id'] ?? 0); $t = $def[1];

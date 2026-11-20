@@ -179,5 +179,13 @@ function pm_schema(): array {
     $m2 = [ // ایستگاهِ چاپ با پروتکلِ Weby (print-api.php: hello/claim/status)
         "ALTER TABLE print_jobs ADD COLUMN attempts INT NOT NULL DEFAULT 0, ADD COLUMN printing_at DATETIME NULL, ADD COLUMN paper_name VARCHAR(60) NULL",
     ];
-    return [$m1, $m2];
+    $m3 = [ // کدگذاریِ v2 (Weby): طولِ متغیر با جداکننده
+        "ALTER TABLE products MODIFY base_code VARCHAR(40) NULL",
+        "ALTER TABLE product_variants MODIFY vcode VARCHAR(6) NOT NULL, MODIFY code VARCHAR(72) NOT NULL",
+        "ALTER TABLE lots MODIFY code VARCHAR(72) NOT NULL, MODIFY seller_code VARCHAR(4) NOT NULL DEFAULT 'OWN'",
+        "ALTER TABLE wh_units MODIFY code VARCHAR(72) NOT NULL",
+        "ALTER TABLE suppliers MODIFY seller_code VARCHAR(4) NULL",
+    ];
+    $m4 = ["ALTER TABLE holidays ADD COLUMN is_off TINYINT NOT NULL DEFAULT 1"]; // ردیفِ دستی با is_off=0 تعطیلیِ اشتباهِ سرویس را لغو می‌کند
+    return [$m1, $m2, $m3, $m4];
 }

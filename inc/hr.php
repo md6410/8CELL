@@ -35,7 +35,8 @@ function contract_sign(int $id, string $method = 'otp', string $otp = ''): array
     audit('contracts', $id, 'sign', null, ['hash' => $hash], 'امضای قرارداد');
     return ['hash' => $hash];
 }
-function hr_rules(): array { return setting_json('hr_rules', []) + ['start' => '08:00', 'hours' => 8, 'grace_min' => 10, 'leave_days_year' => 26, 'month_hours' => 192]; }
+/** مادهٔ ۵۱ قانونِ کار: ۴۴ ساعت در هفته ≈ ۷٫۳۳ ساعت در روز؛ مرخصیِ سالانه ۲۶ روز (مادهٔ ۶۴) */
+function hr_rules(): array { return setting_json('hr_rules', []) + ['start' => '08:00', 'hours' => 7.33, 'grace_min' => 10, 'leave_days_year' => 26, 'month_hours' => 220]; }
 /** کارت‌زنی: ورود/خروج؛ تأخیر و اضافه‌کار خودکار */
 function attendance_punch(int $empId, ?string $at = null, string $source = 'card'): array {
     $at = $at ?: now(); $d = substr($at, 0, 10); $t = substr($at, 11, 8);
@@ -48,7 +49,7 @@ function attendance_compute(int $id): array {
     $r = row("SELECT * FROM attendance WHERE id=?", [$id]); $h = hr_rules();
     $late = 0; $work = 0; $over = 0;
     if ($r['t_in']) { $late = max(0, (int)((strtotime($r['d'] . ' ' . $r['t_in']) - strtotime($r['d'] . ' ' . $h['start'] . ':00')) / 60)); if ($late <= (int)$h['grace_min']) $late = 0; }
-    if ($r['t_in'] && $r['t_out']) { $work = max(0, (int)((strtotime($r['d'] . ' ' . $r['t_out']) - strtotime($r['d'] . ' ' . $r['t_in'])) / 60)); $over = max(0, $work - (int)$h['hours'] * 60); }
+    if ($r['t_in'] && $r['t_out']) { $work = max(0, (int)((strtotime($r['d'] . ' ' . $r['t_out']) - strtotime($r['d'] . ' ' . $r['t_in'])) / 60)); $over = max(0, $work - (int)round((float)$h['hours'] * 60)); }
     upd('attendance', ['late_min' => $late, 'work_min' => $work, 'over_min' => $over], 'id=?', [$id]);
     return ['late_min' => $late, 'work_min' => $work, 'over_min' => $over, 't_in' => $r['t_in'], 't_out' => $r['t_out']];
 }
@@ -79,30 +80,49 @@ function leave_request(array $in): int {
     audit('leaves', $id, 'create', null, ['days' => $days, 'kind' => $kind], 'مرخصی');
     return $id;
 }
-/** نرخ‌های قانونِ کار (هر سال در تنظیمات) */
-function labor_rates(): array { return setting_json('labor_rates', []) + ['housing' => 9000000, 'food' => 22000000, 'child' => 0, 'marriage' => 5000000, 'ins_pct' => 7, 'tax_exempt' => 240000000, 'tax_pct' => 10, 'over_factor' => 1.4]; }
+/** نرخ‌های قانونِ کار — مصوبِ سالانه در تنظیمات، نه در کد (پیش‌فرض‌ها: مصوبهٔ ۱۴۰۵، برگرفته از Weby labor-rules.php؛ همه به ریال) */
+function labor_rates(): array {
+    return setting_json('labor_rates', []) + ['min_daily' => 5541850, 'min_monthly' => 166255500, 'housing' => 30000000, 'food' => 22000000, 'marriage' => 5000000,
+        'child_factor' => 3, 'ins_pct' => 7, 'ins_er_pct' => 23, 'tax_exempt' => 400000000, 'tax_pct' => 10, 'over_factor' => 1.4];
+}
+/** روزهای کاریِ واقعیِ ماه (بی‌تعطیلات) — مبنای نرخِ ساعتِ اضافه‌کاری */
+function hr_month_workdays(string $ym): int { [$a, $b] = jmonth_range($ym); $n = 0; for ($d = $a; $d <= $b; $d = date('Y-m-d', strtotime("$d +1 day"))) if (!holiday_info($d)['off']) $n++; return max(1, $n); }
+/**
+ * فیشِ ماه (روالِ Weby hr.php payslip_calc):
+ *  - مرخصیِ بی‌حقوق/غیبت: مزدِ روز = پایه ÷ ۳۰
+ *  - نرخِ ساعت = پایه ÷ (روزِ کاریِ واقعیِ ماه × ساعتِ روز)؛ اضافه‌کاری × ضریب
+ *  - حقِ اولاد = ۳ × حداقلِ مزدِ روزانه × فرزند
+ *  - مبنای بیمه = پایه + مسکن + اضافه‌کاری (بن و پورسانت/پاداش مشمول نیستند)
+ *  - مالیات = نرخ × (ناخالص − بیمهٔ کارمند − معافیتِ ماهانه)
+ */
 function payroll_calc(int $empId, string $ym, array $extra = []): array {
     $e = row("SELECT * FROM employees WHERE id=?", [$empId]); if (!$e) throw new UserError('کارمند یافت نشد');
     $ym = str_replace('/', '-', en_num($ym)); $L = labor_rates(); $att = attendance_month($empId, $ym); $h = hr_rules();
-    $md = $att['month_days']; $worked = max(0, $md - $att['leave_unpaid'] - (float)($extra['absent'] ?? 0));
-    $base = (int)round((int)$e['base_salary'] * $worked / $md);
-    $hourly = (int)$e['base_salary'] / max(1, (int)$h['month_hours']);
+    $sal = (int)$e['base_salary']; $dayWage = $sal / 30;
+    $cut = (int)round($dayWage * ($att['leave_unpaid'] + (float)($extra['absent'] ?? 0)));
+    $base = max(0, $sal - $cut);
+    $hourly = $sal / (hr_month_workdays($ym) * max(1.0, (float)$h['hours']));
     $over = (int)round($att['over'] / 60 * $hourly * (float)$L['over_factor']);
     $comm = $e['user_id'] ? commission_month((int)$e['user_id'], $ym) : 0;
-    $items = [['t' => 'حقوقِ پایه', 'a' => $base, 'k' => 'earn'], ['t' => 'حقِ مسکن', 'a' => (int)$L['housing'], 'k' => 'earn'], ['t' => 'بن و خواربار', 'a' => (int)$L['food'], 'k' => 'earn']];
+    $items = [['t' => 'حقوقِ پایه', 'a' => $base, 'k' => 'earn']];
+    if ($cut) $items[0]['t'] .= ' (کسرِ ' . fa_num((string)($att['leave_unpaid'] + (float)($extra['absent'] ?? 0))) . ' روز)';
+    $items[] = ['t' => 'حقِ مسکن', 'a' => (int)$L['housing'], 'k' => 'earn', 'ins' => 1];
+    $items[] = ['t' => 'بن و خواربار', 'a' => (int)$L['food'], 'k' => 'earn'];
     if ($e['married']) $items[] = ['t' => 'حقِ تأهل', 'a' => (int)$L['marriage'], 'k' => 'earn'];
-    if ($e['children'] && $L['child']) $items[] = ['t' => 'حقِ اولاد', 'a' => (int)$L['child'] * (int)$e['children'], 'k' => 'earn'];
-    if ($over) $items[] = ['t' => 'اضافه‌کار', 'a' => $over, 'k' => 'earn'];
+    if ((int)$e['children'] > 0) $items[] = ['t' => 'حقِ اولاد', 'a' => (int)$L['child_factor'] * (int)$L['min_daily'] * (int)$e['children'], 'k' => 'earn'];
+    if ($over) $items[] = ['t' => 'اضافه‌کار (' . fa_num((string)round($att['over'] / 60, 1)) . ' ساعت)', 'a' => $over, 'k' => 'earn', 'ins' => 1];
     if ($comm) $items[] = ['t' => 'پورسانت', 'a' => $comm, 'k' => 'earn', 'commission' => 1];
     foreach ((array)($extra['earn'] ?? []) as $x) if (to_int($x['a'] ?? 0)) $items[] = ['t' => (string)$x['t'], 'a' => to_int($x['a']), 'k' => 'earn'];
     $gross = array_sum(array_column($items, 'a'));
-    $ins = $e['insured'] ? (int)floor(($gross - (int)$L['food'] * 0) * (float)$L['ins_pct'] / 100) : 0;
-    $taxable = max(0, $gross - $ins - (int)$L['tax_exempt']); $tax = (int)floor($taxable * (float)$L['tax_pct'] / 100);
-    if ($ins) $items[] = ['t' => 'بیمهٔ سهمِ کارمند', 'a' => $ins, 'k' => 'ded', 'acc' => 'ins'];
+    $insBase = $base + (int)$L['housing'] + $over;
+    $ins = $e['insured'] ? (int)round($insBase * (float)$L['ins_pct'] / 100) : 0;
+    $tax = (int)round(max(0, $gross - $ins - (int)$L['tax_exempt']) * (float)$L['tax_pct'] / 100);
+    if ($ins) $items[] = ['t' => 'بیمهٔ سهمِ کارمند (' . fa_num((string)$L['ins_pct']) . '٪)', 'a' => $ins, 'k' => 'ded', 'acc' => 'ins'];
     if ($tax) $items[] = ['t' => 'مالیاتِ حقوق', 'a' => $tax, 'k' => 'ded', 'acc' => 'tax'];
     $debt = to_int($extra['debt'] ?? 0); if ($debt) $items[] = ['t' => 'کسرِ بدهی', 'a' => $debt, 'k' => 'ded', 'acc' => 'debt'];
     $ded = array_sum(array_map(fn($i) => $i['k'] === 'ded' ? $i['a'] : 0, $items));
-    return ['employee' => $e, 'ym' => $ym, 'items' => $items, 'gross' => $gross, 'deductions' => $ded, 'net' => $gross - $ded, 'attendance' => array_diff_key($att, ['rows' => 1])];
+    $warn = []; if ($e['contract_type'] === 'full' && $sal > 0 && $sal < (int)$L['min_monthly']) $warn[] = 'حقوقِ پایه کمتر از حداقلِ مزدِ ماهانهٔ مصوب است';
+    return ['employee' => $e, 'ym' => $ym, 'items' => $items, 'gross' => $gross, 'deductions' => $ded, 'net' => $gross - $ded, 'ins_er' => $e['insured'] ? (int)round($insBase * (float)$L['ins_er_pct'] / 100) : 0, 'warnings' => $warn, 'attendance' => array_diff_key($att, ['rows' => 1])];
 }
 function payslip_save(int $empId, string $ym, array $extra = []): int {
     $c = payroll_calc($empId, $ym, $extra);

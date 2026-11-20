@@ -7,7 +7,7 @@ function supplier_save(array $in): int {
     $iban = strtoupper(preg_replace('/\s/', '', en_num((string)($in['iban'] ?? ''))));
     if ($iban !== '' && !iban_ok($iban)) throw new UserError('شبا معتبر نیست');
     $d = ['name' => $name, 'national_id' => preg_replace('/\D/', '', en_num((string)($in['national_id'] ?? ''))) ?: null, 'mobile' => norm_mobile($in['mobile'] ?? '') ?: null, 'phone' => trim((string)($in['phone'] ?? '')) ?: null,
-        'iban' => $iban ?: null, 'pay_terms_days' => to_int($in['pay_terms_days'] ?? 0), 'seller_code' => strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', (string)($in['seller_code'] ?? '00')) . '00', 0, 2)),
+        'iban' => $iban ?: null, 'pay_terms_days' => to_int($in['pay_terms_days'] ?? 0), 'seller_code' => seller_code_clean((string)($in['seller_code'] ?? '')) ?: null,
         'address' => trim((string)($in['address'] ?? '')) ?: null, 'active' => empty($in['inactive']) ? 1 : 0];
     $id = (int)($in['id'] ?? 0);
     if ($id) { $o = row("SELECT * FROM suppliers WHERE id=?", [$id]); upd('suppliers', $d, 'id=?', [$id]); [$b, $a] = audit_diff($o, $d); audit('suppliers', $id, 'update', $b, $a, 'تأمین‌کننده'); return $id; }
@@ -101,7 +101,7 @@ function purchase_invoice_commit(array $in): array {
         foreach ($items as $k => $i) {
             $unitCost = (int)round(($i['qty'] * $i['unit_price'] + $shares[$k]) / $i['qty']);
             $own = !empty($in['consign']) ? 'C' : 'O';
-            $lot = wh_lot_ensure($i['product_id'], $i['variant_id'], $wh, $own === 'C' ? $supRow['seller_code'] : '00', $own, $sup);
+            $lot = wh_lot_ensure($i['product_id'], $i['variant_id'], $wh, $own === 'C' ? (string)$supRow['seller_code'] : '', $own, $sup);
             ins('purchase_invoice_items', ['pi_id' => $pi, 'product_id' => $i['product_id'], 'variant_id' => $i['variant_id'], 'qty' => $i['qty'], 'unit_price' => $i['unit_price'], 'overhead_share' => $shares[$k], 'unit_cost' => $unitCost, 'lot_id' => $lot['id']]);
             $serial = (int)val("SELECT serial FROM products WHERE id=?", [$i['product_id']]);
             if ($serial && empty($in['direct_in'])) { wh_lot_cost_in($lot, 0, $unitCost); wh_units_add((int)$lot['id'], $i['qty'], ['status' => 'labeled', 'unit_cost' => $unitCost]); }
