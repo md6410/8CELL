@@ -60,7 +60,7 @@ function notify_once(string $key, string $channel, string $target, callable $sen
 }
 /** هشدار به مدیران: متنِ کامل در بله، پیامکِ قالبی (اگر قالبش تعریف و روشن باشد) */
 function notify_managers(string $key, string $text, string $smsKey = '', array $smsParams = []): int {
-    $n = 0;
+    $n = 0; notify_once($key, 'panel', 'all', fn() => ['ok' => (bool)pn_add(strtok($key, ':'), $text)], $text); // زنگولهٔ پنل هم
     foreach (notify_recipients() as $u) {
         if (bale_on() && setting('notify_bale', '1') === '1' && !empty($u['bale_chat_id'])) $n += (int)(bool)notify_once($key, 'bale', 'u' . $u['id'], fn() => bale_send((string)$u['bale_chat_id'], '🔔 ' . $text), $text);
         if ($smsKey && setting('notify_sms', '1') === '1' && !empty($u['mobile']) && sms_tpl_enabled($smsKey)) $n += (int)(bool)notify_once($key, 'sms', (string)$u['mobile'], fn() => sms_send_tpl((string)$u['mobile'], $smsKey, $smsParams, 'notify', ['ref_type' => 'notify', 'ref_id' => null]), $text);

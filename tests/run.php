@@ -250,7 +250,7 @@ $T['X-CREDIT'] = function () { set_vat(0); fake_bale(); settings_save(['bale_bot
     $pz = err(fn() => promise_save(['customer_id' => customer_save(['kind' => 'person', 'name' => 'بی‌بدهی', 'mobile' => '09121234500']), 'due' => '1405/09/01']));
     customer_pay($cid, 300000, 'card'); promise_autoclose(); $st = val("SELECT status FROM credit_promises WHERE id=?", [$pid]);
     $acc = credit_accounts();
-    return expect($n1 === 3 && $n1b === 0 && $baleN === 1 && $n2 === 3 && $logs === 6 && !$pz['ok'] && $st === 'kept' && !$acc, "pre=$n1 again=$n1b due=$n2 logs=$logs bale=$baleN st=$st"); };
+    return expect($n1 === 3 && $n1b === 0 && $baleN === 1 && $n2 === 3 && $logs === 8 && !$pz['ok'] && $st === 'kept' && !$acc, "pre=$n1 again=$n1b due=$n2 logs=$logs bale=$baleN st=$st"); };
 $T['X-BALELINK'] = function () { fake_bale(); settings_save(['bale_bot_token' => 'x:y']); $c = bale_link_code('users', 1); $GLOBALS['__bale_updates'] = [['update_id' => 7, 'message' => ['chat' => ['id' => 9001], 'text' => '/start ' . $c]]];
     $n = bale_poll(); $u = row("SELECT bale_chat_id, bale_code FROM users WHERE id=1"); return expect($n === 1 && $u['bale_chat_id'] === '9001' && $u['bale_code'] === null && setting('bale_offset') === '8' && count($GLOBALS['__bale_sent']) === 1, json_encode($u)); };
 $T['X-CHEQUE'] = function () { set_vat(0); fake_bale(); settings_save(['bale_bot_token' => 'x:y']); upd('users', ['bale_chat_id' => '555'], 'id=?', [1]); set_current_user(1);
@@ -343,6 +343,30 @@ $T['X-SELLER'] = function () { set_vat(0); $sid = supplier_save(['name' => 'فر
     $u = user_load($uid); set_current_user($uid); $st = seller_stock($sid); $sold = seller_sold($sid, date('Y-m-d', strtotime('-1 day')), today()); seller_pay_confirm($pay); $stmt = seller_statement($sid);
     $deny = !can('pos.use') && !can('reports.dashboard') && can('seller.portal'); $other = supplier_save(['name' => 'دیگری']); set_current_user(1);
     return expect($bad === null && seller_invite_parse($t) === $sid && $deny && (int)$st[0]['on_hand'] === 3 && (int)$sold[0]['qty'] === 2 && $stmt[0]['bal'] === 900000 && (bool)val("SELECT confirmed_at FROM supplier_payments WHERE id=?", [$pay]), json_encode([$st[0]['on_hand'] ?? null, $stmt[0]['bal'] ?? null])); };
+
+$T['X-BACKUP'] = function () { $p = mk_product('کالای پشتیبان', 123456, 3); @mkdir(DATA . '/uploads/t', 0775, true); file_put_contents(DATA . '/uploads/t/a.txt', 'سلام');
+    foreach (bk_list() as $b) @unlink(bk_dir() . '/' . $b['name']); bk_job_save(null);
+    $j = bk_start('all', 'آزمون'); $n = 0; do { $j = bk_step(0.05); $n++; } while (empty($j['done']) && $n < 500);
+    $l = bk_list(); $m = $l[0]['m'] ?? []; $ix = bk_tar_index(bk_dir() . '/' . $l[0]['name']);
+    upd('products', ['name' => 'خراب‌شده'], 'id=?', [$p]); file_put_contents(DATA . '/uploads/t/a.txt', 'x'); $_SESSION['bk_ok'] = time();
+    bk_start_restore($l[0]['name'], true); $k = 0; do { $j = bk_step(0.05); $k++; } while (empty($j['done']) && $k < 2000);
+    $name = (string)val("SELECT name FROM products WHERE id=?", [$p]); $file = file_get_contents(DATA . '/uploads/t/a.txt'); $after = count(bk_list());
+    $bad = err(fn() => bk_safe('../../etc/passwd'));
+    return expect(empty($j['error']) && ($m['app'] ?? '') === '8CELL' && isset($ix['database.sql.gz'], $ix['files/uploads/t/a.txt']) && $name === 'کالای پشتیبان' && $file === 'سلام' && $after === 2 && !$bad['ok'], "steps=$n/$k name=$name file=$file " . ($j['error'] ?? '')); };
+$T['X-DSIMPORT'] = function () { $p = mk_product('قدیمی', 1000, 0); upd('products', ['barcode' => '6260000000011'], 'id=?', [$p]); $f = tempnam(sys_get_temp_dir(), 'csv');
+    file_put_contents($f, "\xEF\xBB\xBFname,barcode,price\nنامِ تازه,6260000000011,2500\nکالای نو,6260000000028,9900\n");
+    $dry = ds_import('products', $f, true); $c0 = (int)val("SELECT COUNT(*) FROM products"); $r = ds_import('products', $f); $c1 = (int)val("SELECT COUNT(*) FROM products");
+    file_put_contents($f, "name,mobile\nمشتری یک,09121230000\n"); $c = ds_import('customers', $f);
+    return expect($dry['new'] === 1 && $c0 === 1 && $r['updated'] === 1 && $c1 === 2 && (string)val("SELECT name FROM products WHERE id=?", [$p]) === 'نامِ تازه' && (int)product_get($p)['price'] === 2500 && $c['new'] === 1, $r['msg']); };
+
+$T['X-OFFICE'] = function () { set_current_user(1); notify_managers('t:1', 'هشدارِ آزمون'); notify_managers('t:1', 'هشدارِ آزمون'); $n1 = pn_unseen_count(); pn_mark_seen(); set_current_user(1); $n2 = pn_unseen_count();
+    $cid = customer_save(['kind' => 'person', 'name' => 'سارا محمدی', 'mobile' => '09121239999']); mk_product('گوشی سامسونگ', 1, 0); $sr = array_column(global_search('سامسونگ'), 'title'); $sc = global_search('09121239999');
+    $a = mk_user('kar1', 'کارمند یک', []); $b = mk_user('pshtib', 'پشتیبان', []); q("INSERT INTO user_caps VALUES (?, 'tickets.manage')", [$b]); $c = mk_user('kar2', 'کارمند دو', []);
+    set_current_user($a); $t = ticket_open(['subject' => 'پرینتر کار نمی‌کند', 'body' => 'برچسب چاپ نمی‌شود', 'dept' => 'فنی']);
+    set_current_user($b); ticket_reply($t, ['body' => 'یادداشت برای همکاران', 'internal' => 1]); ticket_reply($t, ['body' => 'درایور را نصب کنید']); $st = row("SELECT status FROM tickets WHERE id=?", [$t])['status'];
+    set_current_user($a); $mine = count(ticket_messages($t)); set_current_user($c); $deny = err(fn() => ticket_get($t)); set_current_user(1);
+    $l1 = letter_save(['subject' => 'معرفی‌نامه', 'body' => 'بدین‌وسیله…', 'd' => '1405/08/01']); $n1l = letter_finalize($l1); $l2 = letter_save(['subject' => 'دوم', 'body' => 'x']); $n2l = letter_finalize($l2); $ed = err(fn() => letter_save(['id' => $l1, 'subject' => 'x', 'body' => 'y']));
+    return expect($n1 === 1 && $n2 === 0 && in_array('کالاها', $sr, true) && $sc[0]['title'] === 'مشتریان و همکاران' && $st === 'answered' && $mine === 2 && !$deny['ok'] && $n1l === '10250/1405' && str_starts_with($n2l, '10251/') && !$ed['ok'] && str_contains(letter_html(row("SELECT * FROM letters WHERE id=?", [$l1])), 'معرفی‌نامه'), "pn=$n1/$n2 st=$st mine=$mine $n1l $n2l"); };
 
 $res = []; $pass = 0; $fail = 0; $skip = 0;
 foreach ($T as $ref => $fn) {

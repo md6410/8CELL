@@ -252,5 +252,15 @@ function pm_schema(): array {
         "ALTER TABLE supplier_payments ADD COLUMN confirmed_at DATETIME NULL, ADD COLUMN confirm_note VARCHAR(300) NULL",
         "ALTER TABLE suppliers ADD COLUMN contract_at DATETIME NULL, ADD COLUMN contract_ip VARCHAR(45) NULL, ADD COLUMN contract_ver VARCHAR(20) NULL, ADD COLUMN bank_name VARCHAR(80) NULL, ADD COLUMN card_no VARCHAR(20) NULL, ADD COLUMN email VARCHAR(120) NULL",
     ];
-    return [$m1, $m2, $m3, $m4, $m5, $m6, $m7, $m8, $m9, $m10];
+    $m11 = [ // اعلانِ پنل، تیکت، نامهٔ اداری (روالِ Weby panel-notices، tickets، letter)
+        "CREATE TABLE IF NOT EXISTS panel_notices (id BIGINT AUTO_INCREMENT PRIMARY KEY, event VARCHAR(40) NOT NULL, title VARCHAR(200) NOT NULL, body TEXT NULL, link VARCHAR(300) NULL, cap VARCHAR(60) NULL, created_at DATETIME NOT NULL, KEY(created_at))$E",
+        "ALTER TABLE users ADD COLUMN notice_seen BIGINT NOT NULL DEFAULT 0",
+        "CREATE TABLE IF NOT EXISTS tickets (id INT AUTO_INCREMENT PRIMARY KEY, no VARCHAR(20) NOT NULL UNIQUE, subject VARCHAR(200) NOT NULL, dept VARCHAR(40) NOT NULL, priority VARCHAR(10) NOT NULL DEFAULT 'normal',
+            status VARCHAR(10) NOT NULL DEFAULT 'open', opener_id INT NOT NULL, opener_kind VARCHAR(10) NOT NULL DEFAULT 'staff', created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, closed_at DATETIME NULL, KEY(status), KEY(opener_id))$E",
+        "CREATE TABLE IF NOT EXISTS ticket_msgs (id INT AUTO_INCREMENT PRIMARY KEY, ticket_id INT NOT NULL, user_id INT NOT NULL, body TEXT NOT NULL, internal TINYINT NOT NULL DEFAULT 0, file VARCHAR(200) NULL, created_at DATETIME NOT NULL, KEY(ticket_id))$E",
+        "CREATE TABLE IF NOT EXISTS letters (id INT AUTO_INCREMENT PRIMARY KEY, no INT NULL UNIQUE, full_no VARCHAR(40) NULL, d DATE NOT NULL, subject VARCHAR(250) NOT NULL, to_name VARCHAR(200) NULL, to_title VARCHAR(200) NULL,
+            body MEDIUMTEXT NOT NULL, cc VARCHAR(400) NULL, attach_note VARCHAR(250) NULL, status VARCHAR(10) NOT NULL DEFAULT 'draft', sign_on TINYINT NOT NULL DEFAULT 1, stamp_on TINYINT NOT NULL DEFAULT 1,
+            created_by INT NULL, created_at DATETIME NOT NULL, finalized_at DATETIME NULL, KEY(d), KEY(status))$E",
+    ];
+    return [$m1, $m2, $m3, $m4, $m5, $m6, $m7, $m8, $m9, $m10, $m11];
 }

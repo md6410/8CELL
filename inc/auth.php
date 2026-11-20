@@ -5,7 +5,7 @@ declare(strict_types=1);
 function caps_all(): array {
     $c = [
         'تنظیمات' => ['settings.view' => 'دیدنِ تنظیمات', 'settings.edit' => 'ویرایشِ تنظیمات', 'audit.view' => 'دفترِ ممیزی', 'fiscal.manage' => 'سالِ مالی و قفلِ ماه',
-            'ext.manage' => 'ماژول‌ها و قالب', 'update.manage' => 'به‌روزرسانی', 'sms.manage' => 'پیامک'],
+            'ext.manage' => 'ماژول‌ها و قالب', 'update.manage' => 'به‌روزرسانی', 'sms.manage' => 'پیامک', 'backup.manage' => 'پشتیبان‌گیری و ابزارِ داده', 'tickets.manage' => 'پاسخ به تیکت‌ها (پشتیبان)', 'letters.manage' => 'نامه‌های اداری'],
         'کاربران' => ['users.view' => 'دیدنِ کاربران', 'users.edit' => 'ساختن/ویرایشِ کاربر', 'roles.edit' => 'ویرایشِ نقش‌ها'],
         'کالا و انبار' => ['products.view' => 'دیدنِ کالا', 'products.edit' => 'ویرایشِ کالا', 'prices.edit' => 'تغییرِ قیمت', 'stock.view' => 'دیدنِ موجودی',
             'stock.in' => 'ورودِ انبار', 'stock.out' => 'خروجِ انبار و ارسال', 'stock.loss' => 'ضرر و عودت', 'labels.print' => 'چاپِ برچسب', 'warranty.manage' => 'ضمانت: فعال‌سازی و خرابی', 'warranty.void' => 'ضمانت: ابطال و نوع‌ها', 'labels.design' => 'طراحیِ برچسب', 'print.manage' => 'ایستگاه‌های چاپ'],

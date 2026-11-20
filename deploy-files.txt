@@ -20,6 +20,7 @@ inc/accshare.php
 inc/amend.php
 inc/audit.php
 inc/auth.php
+inc/backup.php
 inc/boot.php
 inc/calendar.php
 inc/captcha.php
@@ -38,6 +39,7 @@ inc/labels.php
 inc/ledger.php
 inc/moadian.php
 inc/notify.php
+inc/office.php
 inc/otp.php
 inc/partner.php
 inc/payreq.php
@@ -70,6 +72,7 @@ pages/accounts.php
 pages/accshare.php
 pages/attendance.php
 pages/audit.php
+pages/backup.php
 pages/banks.php
 pages/calendar.php
 pages/catalog.php
@@ -89,9 +92,11 @@ pages/gl.php
 pages/hr.php
 pages/labels.php
 pages/ledger.php
+pages/letters.php
 pages/login.php
 pages/losses.php
 pages/me.php
+pages/notices.php
 pages/notify.php
 pages/offsets.php
 pages/partner_prices.php
@@ -113,6 +118,7 @@ pages/purchase.php
 pages/reports.php
 pages/sale.php
 pages/sales.php
+pages/search.php
 pages/seller.php
 pages/settings.php
 pages/shifts.php
@@ -121,6 +127,7 @@ pages/sms.php
 pages/staff.php
 pages/stock.php
 pages/suppliers.php
+pages/tickets.php
 pages/trends.php
 pages/update.php
 pages/users.php
