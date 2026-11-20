@@ -24,6 +24,7 @@ function sms_tpl_catalog(): array {
         'warranty_otp' => ['کدِ فعال‌سازیِ ضمانت', ['NAME', 'PRODUCT', 'CODE'], ['CODE']],
         'warranty_on' => ['ضمانت فعال شد', ['NAME', 'PRODUCT', 'DATE', 'CODE'], ['DATE', 'CODE']],
         'seller_invite' => ['دعوتِ فروشنده به پنل', ['NAME', 'LINK'], ['LINK']],
+        'feedback' => ['نظرسنجیِ پس از خرید', ['NAME', 'LINK'], ['LINK']],
         'stock_loss_confirm' => ['تأییدِ ثبتِ ضرر', ['CODE'], ['CODE']],
     ]);
 }

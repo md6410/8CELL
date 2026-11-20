@@ -12,14 +12,14 @@ function ledger_chart(): array {
         ['2', 'بدهی‌ها', null, 'C', 'liability', null], ['21', 'بدهی‌های جاری', '2', 'C', 'liability', null],
         ['2101', 'حساب‌های پرداختنی (تأمین‌کنندگان)', '21', 'C', 'liability', 'payable'], ['2102', 'مالیات بر ارزش افزودهٔ فروش', '21', 'C', 'liability', 'vat_out'],
         ['2103', 'حقوقِ پرداختنی', '21', 'C', 'liability', 'salary_payable'], ['2104', 'کیف پولِ مشتریان (پیش‌دریافت)', '21', 'C', 'liability', 'wallet'], ['2105', 'اسنادِ پرداختنی', '21', 'C', 'liability', 'cheque_out'],
-        ['2107', 'بیمهٔ پرداختنی', '21', 'C', 'liability', 'ins_payable'], ['2109', 'جابه‌جاییِ فروش (تهاترِ مرجوعی)', '21', 'C', 'liability', 'exchange'], ['2108', 'مالیاتِ حقوقِ پرداختنی', '21', 'C', 'liability', 'tax_payable'],
+        ['2107', 'بیمهٔ پرداختنی', '21', 'C', 'liability', 'ins_payable'], ['2109', 'جابه‌جاییِ فروش (تهاترِ مرجوعی)', '21', 'C', 'liability', 'exchange'], ['2110', 'بدهی به پیک‌ها', '21', 'C', 'liability', 'courier'], ['2108', 'مالیاتِ حقوقِ پرداختنی', '21', 'C', 'liability', 'tax_payable'],
         ['3', 'حقوقِ صاحبانِ سهام', null, 'C', 'equity', null], ['3101', 'سرمایه', '3', 'C', 'equity', 'capital'], ['3102', 'سود و زیانِ انباشته', '3', 'C', 'equity', 'retained'],
         ['4', 'درآمدها', null, 'C', 'income', null], ['4101', 'فروشِ کالا و خدمات', '4', 'C', 'income', 'sales'], ['4102', 'برگشت از فروش', '4', 'D', 'income', 'sales_return'],
         ['4201', 'درآمدِ اضافیِ صندوق', '4', 'C', 'income', 'cash_over'],
         ['5', 'بهای تمام‌شده', null, 'D', 'cogs', null], ['5101', 'بهای تمام‌شدهٔ کالای فروش‌رفته', '5', 'D', 'cogs', 'cogs'],
         ['6', 'هزینه‌ها', null, 'D', 'expense', null], ['6101', 'حقوق و دستمزد', '6', 'D', 'expense', 'salary'], ['6102', 'پورسانت', '6', 'D', 'expense', 'commission'],
         ['6103', 'کارمزدِ کانال‌ها', '6', 'D', 'expense', 'channel_fee'], ['6104', 'ضایعات و کسریِ کالا', '6', 'D', 'expense', 'stock_loss'], ['6105', 'کسریِ صندوق', '6', 'D', 'expense', 'cash_short'],
-        ['6106', 'هزینه‌های عمومی', '6', 'D', 'expense', 'general'], ['6107', 'هزینهٔ ارسال و پیک', '6', 'D', 'expense', 'shipping'], ['6108', 'هزینهٔ ضمانت و تعمیر', '6', 'D', 'expense', 'warranty'],
+        ['6106', 'هزینه‌های عمومی', '6', 'D', 'expense', 'general'], ['6107', 'هزینهٔ ارسال و پیک', '6', 'D', 'expense', 'shipping'], ['6108', 'هزینهٔ ضمانت و تعمیر', '6', 'D', 'expense', 'warranty'], ['6109', 'مواد بسته‌بندی', '6', 'D', 'expense', 'packaging'],
     ];
 }
 function ledger_seed_accounts(): void {
@@ -137,7 +137,10 @@ function ledger_rules(string $ev, $id, array $x): array {
             else { $lines[] = L(acc_id('receivable'), $a, 0, 'customer', $c['party_id']); $lines[] = L(acc_id('cheque_in'), 0, $a, 'customer', $c['party_id']); }
             break;
         case 'ship_cost': $s = row("SELECT * FROM shipments WHERE id=?", [$id]); $descr = 'هزینهٔ ارسالِ ' . ($s['tracking'] ?: '#' . $id); $lines[] = L(acc_id('shipping'), (int)$s['cost'], 0);
-            $lines[] = $s['paid_from'] === 'bank' ? L(acc_id('bank'), 0, (int)$s['cost'], 'bank', (int)($x['bank_account_id'] ?? 0) ?: null) : L(acc_id('cash'), 0, (int)$s['cost'], 'cashbox', (int)($x['cashbox_id'] ?? 0) ?: null); break;
+            $lines[] = $s['paid_from'] === 'courier' ? L(acc_id('courier'), 0, (int)$s['cost'], 'courier', $s['courier_id']) : ($s['paid_from'] === 'bank' ? L(acc_id('bank'), 0, (int)$s['cost'], 'bank', (int)($x['bank_account_id'] ?? 0) ?: null) : L(acc_id('cash'), 0, (int)$s['cost'], 'cashbox', (int)($x['cashbox_id'] ?? 0) ?: null)); break;
+        case 'courier_settle': $c = row("SELECT * FROM courier_settles WHERE id=?", [$id]); $descr = 'تسویه با پیک'; $lines[] = L(acc_id('courier'), (int)$c['amount'], 0, 'courier', $c['courier_id']);
+            $lines[] = $c['method'] === 'bank' ? L(acc_id('bank'), 0, (int)$c['amount'], 'bank', $c['bank_account_id']) : L(acc_id('cash'), 0, (int)$c['amount'], 'cashbox', (int)($x['cashbox_id'] ?? 0) ?: null); break;
+        case 'packaging': $pk = row("SELECT * FROM shipment_packs WHERE id=?", [$id]); $descr = 'مواد بسته‌بندیِ ارسالِ ' . $pk['shipment_id']; $lines[] = L(acc_id('packaging'), (int)$pk['cost'], 0); $lines[] = L(acc_id('inventory'), 0, (int)$pk['cost']); break;
         case 'warranty_cost': $c = row("SELECT c.*, w.code, w.product_title FROM warranty_claims c JOIN warranty_items w ON w.id=c.warranty_id WHERE c.id=?", [$id]); $descr = 'هزینهٔ ضمانتِ ' . $c['code'] . ' — ' . $c['product_title'];
             $lines[] = L(acc_id('warranty'), (int)$c['cost'], 0); $lines[] = ($x['method'] ?? 'cash') === 'bank' ? L(acc_id('bank'), 0, (int)$c['cost'], 'bank', (int)($x['bank_account_id'] ?? 0) ?: null) : L(acc_id('cash'), 0, (int)$c['cost']); break;
         case 'offset_stock': case 'offset_scrap': $o = row("SELECT * FROM sale_offsets WHERE id=?", [$id]); $descr = ($ev === 'offset_stock' ? 'ورودِ کالای تهاتری به انبار: ' : 'اسقاطِ کالای تهاتری: ') . $o['title'];

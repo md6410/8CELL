@@ -262,5 +262,17 @@ function pm_schema(): array {
             body MEDIUMTEXT NOT NULL, cc VARCHAR(400) NULL, attach_note VARCHAR(250) NULL, status VARCHAR(10) NOT NULL DEFAULT 'draft', sign_on TINYINT NOT NULL DEFAULT 1, stamp_on TINYINT NOT NULL DEFAULT 1,
             created_by INT NULL, created_at DATETIME NOT NULL, finalized_at DATETIME NULL, KEY(d), KEY(status))$E",
     ];
-    return [$m1, $m2, $m3, $m4, $m5, $m6, $m7, $m8, $m9, $m10, $m11];
+    $m12 = [ // ایستگاهِ کارت‌زنی با QR و درخواستِ مرخصی از پنلِ خودِ کارمند (روالِ Weby hr-stations/station.php/staff/leave)
+        "CREATE TABLE IF NOT EXISTS hr_stations (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(120) NOT NULL, skey VARCHAR(40) NOT NULL UNIQUE, device_id VARCHAR(64) NULL, device_label VARCHAR(200) NULL,
+            pending_device VARCHAR(64) NULL, pending_label VARCHAR(200) NULL, active TINYINT NOT NULL DEFAULT 1, created_at DATETIME NOT NULL)$E",
+        "ALTER TABLE attendance ADD COLUMN station_id INT NULL",
+        "ALTER TABLE leaves ADD COLUMN requested_by INT NULL, ADD COLUMN decided_by INT NULL, ADD COLUMN decided_at DATETIME NULL, ADD COLUMN decision_note VARCHAR(300) NULL",
+    ];
+    $m13 = [ // بسته‌بندی، تسویه با پیک، نظرسنجیِ پس از خرید (روالِ Weby packaging، courier-pay، order-feedback)
+        "CREATE TABLE IF NOT EXISTS shipment_packs (id INT AUTO_INCREMENT PRIMARY KEY, shipment_id INT NOT NULL, product_id INT NOT NULL, qty INT NOT NULL, cost BIGINT NOT NULL DEFAULT 0, created_at DATETIME NOT NULL, KEY(shipment_id))$E",
+        "ALTER TABLE shipments ADD COLUMN courier_settle_id INT NULL",
+        "CREATE TABLE IF NOT EXISTS courier_settles (id INT AUTO_INCREMENT PRIMARY KEY, courier_id INT NOT NULL, amount BIGINT NOT NULL, method VARCHAR(10) NOT NULL, bank_account_id INT NULL, note VARCHAR(300) NULL, created_by INT NULL, created_at DATETIME NOT NULL, KEY(courier_id))$E",
+        "CREATE TABLE IF NOT EXISTS feedback (id INT AUTO_INCREMENT PRIMARY KEY, sale_id INT NOT NULL UNIQUE, customer_id INT NULL, rating TINYINT NULL, comment TEXT NULL, sent_at DATETIME NULL, answered_at DATETIME NULL, followed TINYINT NOT NULL DEFAULT 0, created_at DATETIME NOT NULL, KEY(rating))$E",
+    ];
+    return [$m1, $m2, $m3, $m4, $m5, $m6, $m7, $m8, $m9, $m10, $m11, $m12, $m13];
 }

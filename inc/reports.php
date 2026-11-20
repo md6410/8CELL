@@ -218,3 +218,26 @@ function an_export(array $rep, string $fmt): void {
     foreach ($rep['rows'] as $r) fputcsv($o, array_map(fn($k) => report_cell($k, $r[$k] ?? '', false), array_keys($rep['cols'])));
     fclose($o);
 }
+
+// ── ممیزیِ دفترِ مالی (روالِ Weby ledger-audit): ناهمخوانی‌ها را پیدا می‌کند و سندهای جاافتاده را دوباره می‌زند
+function ledger_audit(): array {
+    $o = [];
+    foreach (rows("SELECT j.id, j.number, j.descr, SUM(l.debit) dr, SUM(l.credit) cr FROM journals j JOIN journal_lines l ON l.journal_id=j.id GROUP BY j.id, j.number, j.descr HAVING dr<>cr LIMIT 50") as $r) $o[] = ['k' => 'unbalanced', 't' => 'سندِ ناتراز ' . fa_num((string)$r['number']) . ': ' . $r['descr'], 'fix' => ''];
+    foreach (rows("SELECT s.id, s.number FROM sales s WHERE s.status='done' AND NOT EXISTS (SELECT 1 FROM journals j WHERE j.source_type='sale' AND j.source_id=s.id) LIMIT 50") as $r) $o[] = ['k' => 'sale', 't' => 'فروشِ بی‌سند ' . fa_num($r['number']), 'fix' => 'sale:' . $r['id']];
+    foreach (rows("SELECT s.id, s.number FROM sales s WHERE s.cost>0 AND s.fulfil IN ('done','shipped') AND NOT EXISTS (SELECT 1 FROM journals j WHERE j.source_type='sale_cogs' AND j.source_id=s.id) LIMIT 50") as $r) $o[] = ['k' => 'cogs', 't' => 'بهای تمام‌شدهٔ بی‌سند ' . fa_num($r['number']), 'fix' => 'sale_cogs:' . $r['id']];
+    foreach (rows("SELECT r.id FROM sale_returns r WHERE NOT EXISTS (SELECT 1 FROM journals j WHERE j.source_type='return' AND j.source_id=r.id) LIMIT 50") as $r) $o[] = ['k' => 'return', 't' => 'برگشتِ بی‌سند #' . fa_num((string)$r['id']), 'fix' => 'return:' . $r['id']];
+    $cl = (int)val("SELECT COALESCE(SUM(amount),0) FROM customer_ledger"); $gl = (int)val("SELECT COALESCE(SUM(debit-credit),0) FROM journal_lines WHERE account_id=?", [acc_id('receivable')]);
+    if ($cl !== $gl) $o[] = ['k' => 'recv', 't' => 'جمعِ بدهیِ مشتریان (' . fa_money($cl) . ') با سرفصلِ «حساب‌های دریافتنی» (' . fa_money($gl) . ') برابر نیست؛ اختلاف ' . fa_money($cl - $gl), 'fix' => ''];
+    $ch = (int)val("SELECT COALESCE(SUM(amount),0) FROM cheques WHERE direction='in' AND status='pending' AND EXISTS (SELECT 1 FROM journals j WHERE j.source_type='cheque_recv' AND j.source_id=cheques.id)"); $cg = (int)val("SELECT COALESCE(SUM(debit-credit),0) FROM journal_lines WHERE account_id=?", [acc_id('cheque_in')]);
+    if ($ch !== $cg) $o[] = ['k' => 'cheque', 't' => 'چک‌های در جریانِ مشتری (' . fa_money($ch) . ') با «اسنادِ دریافتنی» (' . fa_money($cg) . ') برابر نیست (چک‌های دستیِ بی‌مشتری را بررسی کنید)', 'fix' => ''];
+    $wl = (int)val("SELECT COALESCE(SUM(amount),0) FROM wallet_ledger"); $wg = -(int)val("SELECT COALESCE(SUM(debit-credit),0) FROM journal_lines WHERE account_id=?", [acc_id('wallet')]);
+    if ($wl !== $wg) $o[] = ['k' => 'wallet', 't' => 'کیف پولِ مشتریان (' . fa_money($wl) . ') با سرفصلِ کیف پول (' . fa_money($wg) . ') برابر نیست', 'fix' => ''];
+    $sv = (int)val("SELECT COALESCE(SUM(m.qty * COALESCE(NULLIF(u.unit_cost,0), l.unit_cost)),0) FROM stock_moves m JOIN lots l ON l.id=m.lot_id LEFT JOIN wh_units u ON u.id=m.unit_id WHERE l.ownership='O'"); $ig = (int)val("SELECT COALESCE(SUM(debit-credit),0) FROM journal_lines WHERE account_id=?", [acc_id('inventory')]);
+    if (abs($sv - $ig) > max(1000, (int)($ig * 0.01))) $o[] = ['k' => 'inventory', 't' => 'ارزشِ موجودیِ انبار (' . fa_money($sv) . ') با سرفصلِ موجودیِ کالا (' . fa_money($ig) . ') فاصله دارد (ورودِ بی‌فاکتور یا اصلاحِ دستی؟)', 'fix' => ''];
+    return $o;
+}
+function ledger_audit_fix(string $fix): void {
+    if (!preg_match('/^(sale|sale_cogs|return):(\d+)$/', $fix, $m)) throw new UserError('اصلاحِ خودکار برای این مورد نیست');
+    if ($m[1] === 'sale_cogs') ledger_post_cogs((int)$m[2]); else ledger_post($m[1], (int)$m[2]);
+    audit('journals', $fix, 'audit_fix', null, null, 'ممیزیِ دفتر: سندِ جاافتاده');
+}

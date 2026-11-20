@@ -26,7 +26,8 @@ function ship_save(array $in): int {
     $ship = $sale && $sale['ship_to'] ? (json_decode((string)$sale['ship_to'], true) ?: []) : [];
     $cust = $cid ? row("SELECT name, mobile, address, postal_code FROM customers WHERE id=?", [$cid]) : null;
     $payer = isset(ship_payers()[$in['payer'] ?? '']) ? $in['payer'] : 'shop'; $cost = to_int($in['cost'] ?? 0); if ($cost < 0) throw new UserError('هزینه منفی نمی‌شود');
-    $paidFrom = in_array($in['paid_from'] ?? '', ['cash', 'bank'], true) ? $in['paid_from'] : null;
+    $paidFrom = in_array($in['paid_from'] ?? '', ['cash', 'bank', 'courier'], true) ? $in['paid_from'] : null;
+    if ($paidFrom === 'courier' && empty($in['courier_id'])) throw new UserError('برای «بدهی به پیک» پیک را انتخاب کنید');
     $d = ['sale_id' => $sale['id'] ?? null, 'customer_id' => $cid, 'carrier' => $carrier, 'courier_id' => (int)($in['courier_id'] ?? 0) ?: null, 'tracking' => mb_cut(trim(en_num((string)($in['tracking'] ?? ''))), 80) ?: null,
         'cost' => $cost, 'payer' => $payer, 'cod_amount' => to_int($in['cod_amount'] ?? 0), 'paid_from' => $payer === 'shop' && $cost > 0 ? $paidFrom : null,
         'receiver_name' => trim((string)($in['receiver_name'] ?? '')) ?: ($addr['receiver_name'] ?? null) ?: ($ship['name'] ?? null) ?: ($cust['name'] ?? null),
@@ -116,3 +117,51 @@ function address_save(int $cid, array $in, string $source = 'staff', bool $posta
     return $id;
 }
 function addresses_of(int $cid): array { return rows("SELECT * FROM customer_addresses WHERE customer_id=? ORDER BY is_default DESC, id DESC", [$cid]); }
+
+// ── بسته‌بندی (روالِ Weby packaging): مصرفِ کالای «مصرفیِ داخلی» روی هر ارسال؛ از انبار کم و هزینهٔ «مواد بسته‌بندی»
+function ship_pack(int $shipId, int $pid, int $qty): int {
+    if (!row("SELECT id FROM shipments WHERE id=?", [$shipId])) throw new UserError('ارسال یافت نشد'); $p = product_get($pid); if (!$p) throw new UserError('کالا یافت نشد');
+    if ($p['item_type'] !== 'IMP') throw new UserError('فقط کالای «مصرفیِ داخلی» (کارتن، نوار، پلاستیک…) بسته‌بندی است'); if ($qty <= 0) throw new UserError('تعداد لازم است');
+    return tx(function () use ($shipId, $pid, $qty) {
+        $wh = (int)val("SELECT l.warehouse_id FROM lots l JOIN stock_moves m ON m.lot_id=l.id WHERE l.product_id=? GROUP BY l.warehouse_id HAVING SUM(m.qty)>=? ORDER BY SUM(m.qty) DESC LIMIT 1", [$pid, $qty]); if (!$wh) throw new UserError('موجودیِ این مادهٔ بسته‌بندی کافی نیست');
+        $out = wh_stock_out(['product_id' => $pid, 'warehouse_id' => $wh], $qty, ['ref_type' => 'packaging', 'ref_id' => $shipId, 'kind' => 'packaging']); $cost = 0; foreach ($out as $o) $cost += $o['cost'] * $o['qty'];
+        $id = ins('shipment_packs', ['shipment_id' => $shipId, 'product_id' => $pid, 'qty' => $qty, 'cost' => $cost, 'created_at' => now()]); if ($cost > 0) ledger_post('packaging', $id); return $id;
+    });
+}
+// ── تسویه با پیک: ارسال‌هایی که هزینه‌شان «بدهی به پیک» ثبت شد، با یک پرداخت بسته می‌شوند
+function courier_due(int $cid): array { return rows("SELECT * FROM shipments WHERE courier_id=? AND paid_from='courier' AND courier_settle_id IS NULL AND status<>'canceled' ORDER BY id", [$cid]); }
+function courier_balance(int $cid): int { return array_sum(array_map(fn($s) => (int)$s['cost'], courier_due($cid))); }
+function courier_settle(int $cid, string $method, int $bankId = 0, string $note = ''): int {
+    $due = courier_due($cid); $amt = array_sum(array_map(fn($s) => (int)$s['cost'], $due)); if ($amt <= 0) throw new UserError('بدهی‌ای به این پیک نیست');
+    $sh = $method === 'cash' ? shift_of_user((int)(current_user()['id'] ?? 0)) : null; if ($method === 'cash' && !$sh) throw new UserError('برای پرداختِ نقد شیفتِ باز لازم است');
+    return tx(function () use ($cid, $method, $bankId, $note, $due, $amt, $sh) {
+        $id = ins('courier_settles', ['courier_id' => $cid, 'amount' => $amt, 'method' => $method === 'bank' ? 'bank' : 'cash', 'bank_account_id' => $bankId ?: null, 'note' => mb_cut($note, 300) ?: null, 'created_by' => current_user()['id'] ?? null, 'created_at' => now()]);
+        q("UPDATE shipments SET courier_settle_id=? WHERE id IN (" . in_list(array_column($due, 'id')) . ")", [$id]);
+        if ($method === 'cash') ins('receipts', ['shift_id' => $sh['id'], 'cashbox_id' => $sh['cashbox_id'], 'method' => 'cash', 'amount' => -$amt, 'ref' => 'تسویه با پیک', 'at' => now()]);
+        ledger_post('courier_settle', $id, ['cashbox_id' => $sh['cashbox_id'] ?? null]); audit('couriers', $cid, 'settle', null, ['amount' => $amt, 'n' => count($due)], 'تسویه با پیک'); return $id;
+    });
+}
+// ── نظرسنجیِ پس از خرید (روالِ Weby order-feedback): پیامکِ لینک، امتیاز ۱ تا ۵ و نظر؛ امتیازِ کم به مدیر هشدار می‌دهد
+function fb_token(int $saleId): string { $b = base_convert((string)$saleId, 10, 36); return $b . '.' . substr(rtrim(strtr(base64_encode(hash_hmac('sha256', 'fb|' . $b, app_secret(), true)), '+/', '-_'), '='), 0, 10); }
+function fb_parse(string $t): ?int { if (!preg_match('/^([0-9a-z]+)\.([A-Za-z0-9_-]{10})$/', $t, $m)) return null; return hash_equals(fb_token((int)base_convert($m[1], 36, 10)), $t) ? (int)base_convert($m[1], 36, 10) : null; }
+function fb_send(int $saleId): array {
+    $s = row("SELECT s.*, c.name cname, c.mobile cmobile FROM sales s JOIN customers c ON c.id=s.customer_id WHERE s.id=?", [$saleId]); if (!$s || !$s['cmobile']) throw new UserError('این فروش مشتریِ با موبایل ندارد');
+    if (val("SELECT sent_at FROM feedback WHERE sale_id=?", [$saleId])) throw new UserError('نظرسنجیِ این فروش قبلاً فرستاده شده است');
+    $url = rtrim(defined('BASE_URL') ? BASE_URL : '', '/') . '/v.php?fb=' . fb_token($saleId);
+    $r = sms_send_tpl((string)$s['cmobile'], 'feedback', ['NAME' => (string)$s['cname'], 'LINK' => $url], 'notify', ['ref_type' => 'sale', 'ref_id' => $saleId]);
+    q("INSERT INTO feedback (sale_id, customer_id, sent_at, created_at) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE sent_at=VALUES(sent_at)", [$saleId, $s['customer_id'], $r['ok'] ? now() : null, now()]);
+    return ['ok' => $r['ok'], 'msg' => $r['ok'] ? 'لینکِ نظرسنجی رفت' : $r['msg'], 'url' => $url];
+}
+function fb_answer(int $saleId, int $rating, string $comment): void {
+    if ($rating < 1 || $rating > 5) throw new UserError('امتیاز را انتخاب کنید'); $f = row("SELECT * FROM feedback WHERE sale_id=?", [$saleId]);
+    if ($f && $f['answered_at']) throw new UserError('نظرِ شما قبلاً ثبت شده است؛ سپاس');
+    q("INSERT INTO feedback (sale_id, customer_id, rating, comment, answered_at, created_at) VALUES (?, (SELECT customer_id FROM sales WHERE id=?), ?, ?, ?, ?) ON DUPLICATE KEY UPDATE rating=VALUES(rating), comment=VALUES(comment), answered_at=VALUES(answered_at)", [$saleId, $saleId, $rating, mb_cut(trim($comment), 2000) ?: null, now(), now()]);
+    if ($rating <= 2) notify_managers('fb:' . $saleId, '😞 امتیازِ ' . fa_num((string)$rating) . ' برای فروشِ ' . fa_num((string)val("SELECT number FROM sales WHERE id=?", [$saleId])) . ($comment !== '' ? ': ' . mb_substr($comment, 0, 200) : ''));
+}
+/** خودکار: فروش‌های دارای مشتریِ موبایل‌دار پس از N ساعت (cron) */
+function fb_auto(): int {
+    $h = (int)setting('feedback_after_hours', '0'); if ($h <= 0 || !sms_tpl_enabled('feedback')) return 0; $n = 0;
+    foreach (rows("SELECT s.id FROM sales s JOIN customers c ON c.id=s.customer_id LEFT JOIN feedback f ON f.sale_id=s.id WHERE f.id IS NULL AND c.mobile IS NOT NULL AND s.at BETWEEN ? AND ? LIMIT 30", [date('Y-m-d H:i:s', time() - ($h + 48) * 3600), date('Y-m-d H:i:s', time() - $h * 3600)]) as $r)
+        { try { if (fb_send((int)$r['id'])['ok']) $n++; } catch (Throwable $e) {} }
+    return $n;
+}

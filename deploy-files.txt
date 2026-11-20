@@ -52,6 +52,7 @@ inc/reports.php
 inc/routes.php
 inc/scan.php
 inc/schema.php
+inc/selfdesk.php
 inc/seller.php
 inc/settings.php
 inc/ship.php
@@ -87,15 +88,19 @@ pages/doc.php
 pages/docs.php
 pages/employee.php
 pages/ext.php
+pages/feedback.php
 pages/followup.php
 pages/gl.php
+pages/help.php
 pages/hr.php
 pages/labels.php
 pages/ledger.php
+pages/ledger_audit.php
 pages/letters.php
 pages/login.php
 pages/losses.php
 pages/me.php
+pages/my.php
 pages/notices.php
 pages/notify.php
 pages/offsets.php
@@ -114,6 +119,7 @@ pages/print_receipt.php
 pages/print_shift.php
 pages/product.php
 pages/products.php
+pages/punch.php
 pages/purchase.php
 pages/reports.php
 pages/sale.php

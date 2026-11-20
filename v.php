@@ -104,6 +104,27 @@ if (isset($_GET['sj'])) {
         . '<form method="post" class="form"><input type="hidden" name="csrf" value="' . $csrf . '"><label class="field"><span>نامِ کاربری (لاتین)</span><input name="u" dir="ltr" required value="' . h((string)($_POST['u'] ?? ($ex['username'] ?? ''))) . '"></label>'
         . '<label class="field"><span>رمز (۸ نویسه به بالا)</span><input type="password" name="p1" required minlength="8" autocomplete="new-password"></label><label class="field"><span>تکرارِ رمز</span><input type="password" name="p2" required autocomplete="new-password"></label><div class="actions"><button class="btn primary">ذخیره</button></div></form>');
 }
+// ── ایستگاهِ کارت‌زنی: صفحهٔ مستقلِ QR (بی‌نشست و بی‌منو)؛ گره خورده به یک دستگاه
+if (isset($_GET['st'])) {
+    $s = station_by_key((string)$_GET['st']); if (!$s) vmsg('این ایستگاه نیست یا غیرفعال است.', 404, 'ایستگاهِ کارت‌زنی');
+    $dev = station_device($s); $st = station_device_check($s, $dev, mb_substr((string)($_SERVER['HTTP_USER_AGENT'] ?? ''), 0, 200));
+    if (($_GET['f'] ?? '') === 'json') { header('Content-Type: application/json'); echo json_encode($st === 'ok' ? ['ok' => true, 'url' => rtrim(defined('BASE_URL') ? BASE_URL : '', '/') . '/index.php?p=punch&t=' . att_token((int)$s['id']), 'ttl' => ATT_WINDOW - time() % ATT_WINDOW, 'time' => fa_num(date('H:i:s'))] : ['ok' => false]); exit; }
+    if ($st !== 'ok') vpage('ایستگاهِ کارت‌زنی', '<h1>منتظرِ تأیید</h1><p>این دستگاه هنوز برای ایستگاهِ «' . h($s['name']) . '» تأیید نشده است. مدیر از «حضور و غیاب» تأییدش کند و صفحه را تازه کنید.</p>');
+    echo '<!doctype html><html lang="fa" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>کارت‌زنی — ' . h($s['name']) . '</title><link rel="stylesheet" href="assets/app.css"><script src="assets/vendor/qrcode.js"></script>'
+        . '<style>body{display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;background:#0f172a;color:#fff;text-align:center;font-family:Vazirmatn,Tahoma}#q{background:#fff;padding:16px;border-radius:16px;display:inline-block}#q svg{width:min(70vmin,420px);height:auto}h1{margin:0 0 12px}#t{font-size:28px;margin-top:10px}</style></head><body><div><h1>' . h((string)setting('biz_name', '')) . ' — ' . h($s['name']) . '</h1><div id="q"></div><div id="t"></div><p>با گوشیِ خودتان (واردشده به پنل) اسکن کنید.</p></div>'
+        . '<script>(function(){var u=location.href.replace(/([?&])f=json/,"")+(location.search.indexOf("?")>=0?"&":"?")+"f=json";function go(){fetch(u,{cache:"no-store",credentials:"same-origin"}).then(function(r){return r.json()}).then(function(j){if(!j.ok){location.reload();return}var q=qrcode(0,"M");q.addData(j.url);q.make();document.getElementById("q").innerHTML=q.createSvgTag({cellSize:6,margin:0});document.getElementById("t").textContent=j.time;setTimeout(go,Math.max(2,j.ttl)*1000)}).catch(function(){setTimeout(go,5000)})}go()})();</script></body></html>';
+    exit;
+}
+// ── نظرسنجیِ پس از خرید
+if (isset($_GET['fb'])) {
+    $sid = fb_parse((string)$_GET['fb']); $s = $sid ? row("SELECT s.number, c.name FROM sales s LEFT JOIN customers c ON c.id=s.customer_id WHERE s.id=?", [$sid]) : null; if (!$s) vmsg('لینک نامعتبر است.', 404, 'نظرِ شما');
+    $err = '';
+    if ($_SERVER['REQUEST_METHOD'] === 'POST') { if (!vcsrf_ok()) $err = 'مهلتِ صفحه تمام شده بود؛ دوباره بفرستید.'; else { try { fb_answer($sid, (int)($_POST['r'] ?? 0), (string)($_POST['c'] ?? '')); vpage('نظرِ شما', '<h1>سپاس 🌷</h1><p>نظرِ شما ثبت شد و به دستِ مدیرِ ' . h((string)setting('biz_name', '')) . ' می‌رسد.</p>'); } catch (UserError $e) { $err = $e->getMessage(); } } }
+    if (val("SELECT answered_at FROM feedback WHERE sale_id=?", [$sid])) vpage('نظرِ شما', '<h1>سپاس</h1><p>نظرِ شما برای این خرید قبلاً ثبت شده است.</p>');
+    $stars = ''; for ($i = 5; $i >= 1; $i--) $stars .= '<label style="font-size:22px;margin:0 4px"><input type="radio" name="r" value="' . $i . '" required> ' . str_repeat('★', $i) . '</label><br>';
+    vpage('نظرِ شما', '<h1>از خریدتان راضی بودید؟</h1><p>' . h((string)($s['name'] ?: '')) . ' عزیز، خریدِ ' . h(fa_num($s['number'])) . ' از ' . h((string)setting('biz_name', '')) . '.</p>' . ($err ? '<p class="err">' . h($err) . '</p>' : '')
+        . '<form method="post" class="form"><input type="hidden" name="csrf" value="' . $csrf . '"><div>' . $stars . '</div><label class="field"><span>نظر یا پیشنهاد (اختیاری)</span><textarea name="c" rows="3"></textarea></label><div class="actions"><button class="btn primary">ثبت</button></div></form>');
+}
 // ── فهرستِ قیمتِ همکار (لینکِ امضاشدهٔ ۳۰ روزه)
 if (isset($_GET['pl'])) {
     $cid = plist_parse((string)$_GET['pl']); $c = $cid ? row("SELECT * FROM customers WHERE id=? AND is_partner=1", [$cid]) : null;

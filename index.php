@@ -20,6 +20,7 @@ if (in_array($p, ['print_doc', 'print_label', 'print_receipt', 'print_shift', 'p
     $job = print_job_grant();
     if (!$job && !current_user()) { http_response_code(401); exit('ابتدا وارد شوید'); }
     if ($job) set_current_user((int)$job['created_by'] ?: null);
+    elseif ($p !== 'print_payslip' && !can(['print_doc' => 'docs.view', 'print_receipt' => 'pos.use|docs.view', 'print_shift' => 'pos.use|shift.manage', 'print_label' => 'labels.print|stock.in'][$p] ?? 'settings.edit')) { http_response_code(403); exit('این دسترسی را ندارید'); }
     require ROOT . "/pages/$p.php"; exit;
 }
 $u = current_user();

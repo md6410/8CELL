@@ -368,6 +368,28 @@ $T['X-OFFICE'] = function () { set_current_user(1); notify_managers('t:1', 'هش
     $l1 = letter_save(['subject' => 'معرفی‌نامه', 'body' => 'بدین‌وسیله…', 'd' => '1405/08/01']); $n1l = letter_finalize($l1); $l2 = letter_save(['subject' => 'دوم', 'body' => 'x']); $n2l = letter_finalize($l2); $ed = err(fn() => letter_save(['id' => $l1, 'subject' => 'x', 'body' => 'y']));
     return expect($n1 === 1 && $n2 === 0 && in_array('کالاها', $sr, true) && $sc[0]['title'] === 'مشتریان و همکاران' && $st === 'answered' && $mine === 2 && !$deny['ok'] && $n1l === '10250/1405' && str_starts_with($n2l, '10251/') && !$ed['ok'] && str_contains(letter_html(row("SELECT * FROM letters WHERE id=?", [$l1])), 'معرفی‌نامه'), "pn=$n1/$n2 st=$st mine=$mine $n1l $n2l"); };
 
+$T['X-SELFDESK'] = function () { $u = mk_user('emp1', 'کارمندِ یک', []); $e = employee_save(['name' => 'کارمندِ یک', 'base_salary' => 100000000, 'user_id' => $u]); upd('users', ['employee_id' => $e], 'id=?', [$u]);
+    $st = station_create('درِ ورودی'); $s = row("SELECT * FROM hr_stations WHERE id=?", [$st]); $a = station_device_check($s, 'dev1'); $b = station_device_check(row("SELECT * FROM hr_stations WHERE id=?", [$st]), 'dev2');
+    set_current_user($u); $tok = att_token($st); $r = att_punch_qr($tok); $old = err(fn() => att_punch_qr($st . '.' . base_convert((string)(intdiv(time(), 30) - 5), 10, 36) . '.' . substr(hash_hmac('sha256', "att|$st|" . (intdiv(time(), 30) - 5), app_secret()), 0, 12)));
+    $fake = err(fn() => att_punch_qr($st . '.abc.000000000000')); $again = err(fn() => att_punch_qr(att_token($st)));
+    $lv = leave_self_request(['kind' => 'paid', 'from' => jdate(date('Y-m-d', strtotime('+3 day')), false, false), 'days' => 2]); $other = err(fn() => leave_decide($lv, true));
+    $ps = payslip_save($e, str_replace('/', '-', jym(today()))); upd('payslips', ['status' => 'posted'], 'id=?', [$ps]); $m = my_desk(); set_current_user(1); leave_decide($lv, true);
+    return expect($a === 'ok' && $b === 'pending' && !empty($r['t_in']) && !$old['ok'] && !$fake['ok'] && !$again['ok'] && !$other['ok'] && row("SELECT status FROM leaves WHERE id=?", [$lv])['status'] === 'approved' && count($m['payslips']) === 1 && $m['att']['t_in'] !== null, $r['msg'] . ' · ' . $old['msg']); };
+
+$T['X-COURIER'] = function () { set_vat(0); $box = product_save(['name' => 'کارتن', 'price' => 0, 'item_type' => 'IMP']); $lot = wh_lot_ensure($box, null, 1); wh_stock_in($lot['code'], 10, ['unit_cost' => 5000]); open_shift(1);
+    $k = courier_save(['name' => 'علی پیک', 'carrier' => 'peyk']); $s1 = ship_save(['carrier' => 'peyk', 'courier_id' => $k, 'address' => 'تهران', 'cost' => 100000, 'payer' => 'shop', 'paid_from' => 'courier']); $s2 = ship_save(['carrier' => 'peyk', 'courier_id' => $k, 'address' => 'کرج', 'cost' => 150000, 'payer' => 'shop', 'paid_from' => 'courier']);
+    $due = courier_balance($k); ship_pack($s1, $box, 2); $noImp = err(fn() => ship_pack($s1, mk_product('گوشی', 1, 3), 1)); $set = courier_settle($k, 'cash'); $after = courier_balance($k); $again = err(fn() => courier_settle($k, 'cash'));
+    $tb = fn($x) => (int)val("SELECT COALESCE(SUM(debit-credit),0) FROM journal_lines WHERE account_id=?", [acc_id($x)]);
+    return expect($due === 250000 && $after === 0 && !$again['ok'] && !$noImp['ok'] && $tb('courier') === 0 && $tb('packaging') === 10000 && $tb('shipping') === 250000 && shift_expected((int)shift_of_user(1)['id'])['expected'] === -250000, "due=$due pack=" . $tb('packaging')); };
+$T['X-FEEDBACK'] = function () { set_vat(0); sms_tpls_on(['feedback']); $p = mk_product('x', 1000, 5); open_shift(1); $cid = customer_save(['kind' => 'person', 'name' => 'مینا', 'mobile' => '09121231111']);
+    $s = sell([['product_id' => $p, 'qty' => 1]], [['method' => 'cash', 'amount' => 1000]], ['customer_id' => $cid]); $r = fb_send($s); $twice = err(fn() => fb_send($s)); $t = fb_token($s);
+    fb_answer($s, 1, 'دیر رسید'); $dup = err(fn() => fb_answer($s, 5, '')); $bad = fb_parse(substr($t, 0, -1) . (substr($t, -1) === 'A' ? 'B' : 'A'));
+    return expect($r['ok'] && !$twice['ok'] && fb_parse($t) === $s && $bad === null && !$dup['ok'] && (int)val("SELECT rating FROM feedback WHERE sale_id=?", [$s]) === 1 && (int)val("SELECT COUNT(*) FROM panel_notices WHERE event='fb'") === 1, $r['msg']); };
+$T['X-LAUDIT'] = function () { set_vat(0); $p = mk_product('x', 1000, 5, 600); open_shift(1); $s = sell([['product_id' => $p, 'qty' => 1]], [['method' => 'cash', 'amount' => 1000]]); $clean = ledger_audit();
+    q("DELETE FROM journal_lines WHERE journal_id=(SELECT id FROM journals WHERE source_type='sale' AND source_id=?)", [(string)$s]); q("DELETE FROM journals WHERE source_type='sale' AND source_id=?", [(string)$s]);
+    $bad = array_column(ledger_audit(), 'fix'); ledger_audit_fix('sale:' . $s); $fixed = ledger_audit();
+    return expect(!array_filter($clean, fn($r) => $r['k'] !== 'inventory') && in_array('sale:' . $s, $bad, true) && !array_filter($fixed, fn($r) => $r['k'] === 'sale'), json_encode(array_column($clean, 't'), JSON_UNESCAPED_UNICODE)); };
+
 $res = []; $pass = 0; $fail = 0; $skip = 0;
 foreach ($T as $ref => $fn) {
     try { reset_db(); [$st, $got] = $fn(); } catch (Throwable $e) { $st = 'fail'; $got = get_class($e) . ': ' . $e->getMessage() . ' @' . basename($e->getFile()) . ':' . $e->getLine(); }

@@ -110454,6 +110454,577 @@
      "source": "tests/run.php"
     }
    ]
+  },
+  {
+   "id": "new-18",
+   "parent": 2242,
+   "order": 187,
+   "kind": "module",
+   "title": "ضمانتِ فروشگاه و هولوگرام",
+   "summary": "ضمانت به دانه با شرطِ قفل‌شدهٔ روزِ فروش؛ فعال‌سازی با کدِ پیامکی به صاحب (یا بی‌کد فقط مدیرِ ارشد)؛ هولوگرامِ یکتا؛ خرابی‌های بی‌سقف با هزینه و سند؛ مرجوعی = صفِ ابطال؛ انقضای خودکار؛ کارتِ عمومی v.php?w=",
+   "details": "همتای Weby — نسخهٔ ۱.۵.۰",
+   "inputs": [
+    {
+     "name": "ورودیِ کاربر",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "ضمانتِ فروشگاه و هولوگرام",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "warranty_from_sale ← activate ← claims ← expire",
+   "tech": "inc/warranty.php، pages/warranty*.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "weby-parity"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18102,
+     "ref": "X-WARRANTY",
+     "title": "ضمانت از فروش تا انقضا",
+     "port": "",
+     "state": "",
+     "given": "دو گوشیِ دانه‌ای با ضمانتِ ۱۸ ماهه",
+     "expect_kind": "value",
+     "expect": "دو ضمانت؛ هولوگرامِ تکراری رد؛ کدِ اشتباه رد؛ فعال برای صاحبِ تازه؛ هزینهٔ تعمیر سند؛ مرجوعی صفِ ابطال؛ انقضا",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-19",
+   "parent": 2316,
+   "order": 187,
+   "kind": "module",
+   "title": "تهاتر و اصلاحِ فروش",
+   "summary": "کالای مشتری به‌جای پول (به قیمتِ خرید) ← انبارِ بلاتکلیف ← ورود به انبار یا اسقاط؛ اصلاحِ فروش تا N ساعت با برگشت + فروشِ پیوسته و فقط مابه‌التفاوت",
+   "details": "همتای Weby — نسخهٔ ۱.۵.۰",
+   "inputs": [
+    {
+     "name": "ورودیِ کاربر",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "تهاتر و اصلاحِ فروش",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "sale_commit(offsets) ← offset_decide؛ sale_amend",
+   "tech": "inc/amend.php، pages/offsets.php، pages/sale.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "weby-parity"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18103,
+     "ref": "X-OFFSET",
+     "title": "تهاتر",
+     "port": "",
+     "state": "",
+     "given": "فروشِ ۵م با ۳م نقد و گوشیِ کارکردهٔ ۲م",
+     "expect_kind": "value",
+     "expect": "کالای تهاتری ۲م؛ ورود به انبار ۱ عدد و صفر شدنِ حسابِ تهاتر",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    },
+    {
+     "id": 18104,
+     "ref": "X-AMEND",
+     "title": "اصلاحِ فروش",
+     "port": "",
+     "state": "",
+     "given": "جابه‌جاییِ قاب با گلس و بعد با شارژر",
+     "expect_kind": "value",
+     "expect": "۱۵۰٬۰۰۰ گرفته، ۷۰٬۰۰۰ پس داده؛ صندوق و حسابِ جابه‌جایی درست؛ فروشندهٔ دیگر و پس از مهلت رد",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-20",
+   "parent": 2242,
+   "order": 187,
+   "kind": "module",
+   "title": "پنلِ فروشنده/تأمین‌کننده",
+   "summary": "دعوت با لینک، موجودی نزدِ ما، فروش‌رفته‌ها، صورت‌حساب، تأییدِ دریافتِ وجه، پرونده و قرارداد",
+   "details": "همتای Weby — نسخهٔ ۱.۵.۰",
+   "inputs": [
+    {
+     "name": "ورودیِ کاربر",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "پنلِ فروشنده/تأمین‌کننده",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "seller_invite ← seller_join ← پنل",
+   "tech": "inc/seller.php، pages/seller.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "weby-parity"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18105,
+     "ref": "X-SELLER",
+     "title": "پنلِ فروشنده",
+     "port": "",
+     "state": "",
+     "given": "کالای امانی ۵ عدد، فروشِ ۲، پرداختِ ۶۰۰ هزار",
+     "expect_kind": "value",
+     "expect": "موجودی ۳، فروش ۲، ماندهٔ ۹۰۰ هزار، تأییدِ دریافت؛ دسترسیِ دیگر ندارد",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-21",
+   "parent": 2177,
+   "order": 187,
+   "kind": "module",
+   "title": "پشتیبان و ابزارِ داده",
+   "summary": "پشتیبانِ تکه‌تکه (tar با پایگاه‌داده و پرونده‌ها)، بازگرداندن با پشتیبانِ پیشین و تأییدِ رمز، خودکارِ روزانه، برون‌بری/درون‌ریزیِ CSV",
+   "details": "همتای Weby — نسخهٔ ۱.۵.۰",
+   "inputs": [
+    {
+     "name": "ورودیِ کاربر",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "پشتیبان و ابزارِ داده",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "bk_start ← bk_step ← bk_start_restore",
+   "tech": "inc/backup.php، pages/backup.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "weby-parity"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18106,
+     "ref": "X-BACKUP",
+     "title": "پشتیبان و بازگرداندن",
+     "port": "",
+     "state": "",
+     "given": "پشتیبانِ کامل، خراب‌کردنِ داده، بازگرداندن",
+     "expect_kind": "value",
+     "expect": "داده و پرونده برگشت؛ پشتیبانِ پیش از بازگرداندن ساخته شد",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    },
+    {
+     "id": 18107,
+     "ref": "X-DSIMPORT",
+     "title": "درون‌ریزیِ CSV",
+     "port": "",
+     "state": "",
+     "given": "کالای موجود با بارکد و کالای تازه",
+     "expect_kind": "value",
+     "expect": "آزمایشی ذخیره نکرد؛ یکی به‌روز و یکی تازه",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-22",
+   "parent": 2211,
+   "order": 187,
+   "kind": "module",
+   "title": "اعلان، جست‌وجو، تیکت، نامه",
+   "summary": "زنگولهٔ اعلان (هر هشدار)، جست‌وجوی سراسری با دسترسی، تیکتِ داخلی با یادداشتِ داخلی و پیوست، نامهٔ اداری با شمارهٔ ۵ رقمی و سربرگ",
+   "details": "همتای Weby — نسخهٔ ۱.۵.۰",
+   "inputs": [
+    {
+     "name": "ورودیِ کاربر",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "اعلان، جست‌وجو، تیکت، نامه",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "pn_add، global_search، ticket_*، letter_*",
+   "tech": "inc/office.php، pages/notices|search|tickets|letters.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "weby-parity"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18108,
+     "ref": "X-OFFICE",
+     "title": "اعلان، جست‌وجو، تیکت، نامه",
+     "port": "",
+     "state": "",
+     "given": "هشدارِ تکراری؛ جست‌وجو؛ تیکت با یادداشتِ داخلی؛ دو نامه",
+     "expect_kind": "value",
+     "expect": "یک اعلان؛ بخش‌های درست؛ بازکننده یادداشتِ داخلی را نمی‌بیند؛ ۱۰۲۵۰/۱۴۰۵ و ۱۰۲۵۱؛ نامهٔ نهایی ویرایش نمی‌شود",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-23",
+   "parent": 2377,
+   "order": 187,
+   "kind": "module",
+   "title": "میزِ کارِ کارمند و ایستگاهِ کارت‌زنی",
+   "summary": "فروش و پورسانت و حسابِ نقدی، فیش‌های خودش، درخواستِ مرخصی (تأییدِ منابعِ انسانی)، کارت‌زنی با QRِ ۳۰ ثانیه‌ایِ ایستگاهِ گره‌خورده به دستگاه",
+   "details": "همتای Weby — نسخهٔ ۱.۵.۰",
+   "inputs": [
+    {
+     "name": "ورودیِ کاربر",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "میزِ کارِ کارمند و ایستگاهِ کارت‌زنی",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "station ← att_punch_qr؛ leave_self ← leave_decide",
+   "tech": "inc/selfdesk.php، pages/my.php، v.php?st=",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "weby-parity"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18109,
+     "ref": "X-SELFDESK",
+     "title": "کارت‌زنی و مرخصی",
+     "port": "",
+     "state": "",
+     "given": "ایستگاه، کدِ تازه/کهنه/جعلی، درخواستِ مرخصی",
+     "expect_kind": "value",
+     "expect": "ورود ثبت؛ کدِ کهنه و جعلی رد؛ کارمند مرخصیِ خودش را تأیید نمی‌کند",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-24",
+   "parent": 2316,
+   "order": 187,
+   "kind": "module",
+   "title": "بسته‌بندی، تسویه با پیک، نظرسنجی",
+   "summary": "مصرفِ مواد بسته‌بندی روی ارسال، بدهی و تسویهٔ یک‌جای پیک، لینکِ نظرسنجیِ پس از خرید با هشدارِ امتیازِ کم",
+   "details": "همتای Weby — نسخهٔ ۱.۵.۰",
+   "inputs": [
+    {
+     "name": "ورودیِ کاربر",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "بسته‌بندی، تسویه با پیک، نظرسنجی",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "ship_pack، courier_settle، fb_send/fb_answer",
+   "tech": "inc/ship.php، pages/shipments.php، pages/feedback.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "weby-parity"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18110,
+     "ref": "X-COURIER",
+     "title": "پیک و بسته‌بندی",
+     "port": "",
+     "state": "",
+     "given": "دو ارسال با بدهی به پیک و ۲ کارتن",
+     "expect_kind": "value",
+     "expect": "بدهی ۲۵۰ هزار تسویه؛ هزینهٔ بسته‌بندی ۱۰ هزار",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    },
+    {
+     "id": 18111,
+     "ref": "X-FEEDBACK",
+     "title": "نظرسنجی",
+     "port": "",
+     "state": "",
+     "given": "فروش با مشتری، امتیازِ ۱",
+     "expect_kind": "value",
+     "expect": "لینک رفت؛ پاسخِ دوباره رد؛ هشدار به مدیر",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
+  },
+  {
+   "id": "new-25",
+   "parent": 2409,
+   "order": 187,
+   "kind": "module",
+   "title": "ممیزیِ دفترِ مالی",
+   "summary": "سندِ ناتراز، رویدادِ بی‌سند، و برابری‌نداشتنِ دفترهای فرعی با سرفصل‌ها؛ زدنِ سندِ جاافتاده",
+   "details": "همتای Weby — نسخهٔ ۱.۵.۰",
+   "inputs": [
+    {
+     "name": "ورودیِ کاربر",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "ممیزیِ دفترِ مالی",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "ledger_audit، ledger_audit_fix",
+   "tech": "inc/reports.php، pages/ledger_audit.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "weby-parity"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18112,
+     "ref": "X-LAUDIT",
+     "title": "ممیزی",
+     "port": "",
+     "state": "",
+     "given": "حذفِ سندِ یک فروش",
+     "expect_kind": "value",
+     "expect": "پیدا و دوباره زده شد",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
   }
  ],
  "dependencies": [
@@ -123140,6 +123711,174 @@
    "deviations": "",
    "remaining": "",
    "actual_days": 1
+  },
+  {
+   "node": "new-18",
+   "status": "done",
+   "progress": 100,
+   "summary": "همتای Weby (به‌جز فروشگاهِ آنلاین) — نسخهٔ ۱.۵.۰",
+   "how": "ضمانت به دانه با شرطِ قفل‌شدهٔ روزِ فروش؛ فعال‌سازی با کدِ پیامکی به صاحب (یا بی‌کد فقط مدیرِ ارشد)؛ هولوگرامِ یکتا؛ خرابی‌های بی‌سقف با هزینه و سند؛ مرجوعی = صفِ ابطال؛ انقضای خودکار؛ کارتِ عمومی v.php?w=",
+   "files_changed": [
+    "inc/warranty.php",
+    "pages/warranty.php",
+    "pages/warranty_view.php",
+    "v.php",
+    "inc/pos.php",
+    "inc/warehouse.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-WARRANTY",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-19",
+   "status": "done",
+   "progress": 100,
+   "summary": "همتای Weby (به‌جز فروشگاهِ آنلاین) — نسخهٔ ۱.۵.۰",
+   "how": "کالای مشتری به‌جای پول (به قیمتِ خرید) ← انبارِ بلاتکلیف ← ورود به انبار یا اسقاط؛ اصلاحِ فروش تا N ساعت با برگشت + فروشِ پیوسته و فقط مابه‌التفاوت",
+   "files_changed": [
+    "inc/amend.php",
+    "inc/pos.php",
+    "inc/ledger.php",
+    "pages/offsets.php",
+    "pages/sale.php",
+    "assets/pos.js"
+   ],
+   "decisions": [],
+   "how_to_test": "X-OFFSET، X-AMEND",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-20",
+   "status": "done",
+   "progress": 100,
+   "summary": "همتای Weby (به‌جز فروشگاهِ آنلاین) — نسخهٔ ۱.۵.۰",
+   "how": "دعوت با لینک، موجودی نزدِ ما، فروش‌رفته‌ها، صورت‌حساب، تأییدِ دریافتِ وجه، پرونده و قرارداد",
+   "files_changed": [
+    "inc/seller.php",
+    "pages/seller.php",
+    "pages/suppliers.php",
+    "inc/auth.php",
+    "v.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-SELLER",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-21",
+   "status": "done",
+   "progress": 100,
+   "summary": "همتای Weby (به‌جز فروشگاهِ آنلاین) — نسخهٔ ۱.۵.۰",
+   "how": "پشتیبانِ تکه‌تکه (tar با پایگاه‌داده و پرونده‌ها)، بازگرداندن با پشتیبانِ پیشین و تأییدِ رمز، خودکارِ روزانه، برون‌بری/درون‌ریزیِ CSV",
+   "files_changed": [
+    "inc/backup.php",
+    "pages/backup.php",
+    "index.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-BACKUP، X-DSIMPORT",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-22",
+   "status": "done",
+   "progress": 100,
+   "summary": "همتای Weby (به‌جز فروشگاهِ آنلاین) — نسخهٔ ۱.۵.۰",
+   "how": "زنگولهٔ اعلان (هر هشدار)، جست‌وجوی سراسری با دسترسی، تیکتِ داخلی با یادداشتِ داخلی و پیوست، نامهٔ اداری با شمارهٔ ۵ رقمی و سربرگ",
+   "files_changed": [
+    "inc/office.php",
+    "parts/topbar.php",
+    "pages/notices.php",
+    "pages/search.php",
+    "pages/tickets.php",
+    "pages/letters.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-OFFICE",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-23",
+   "status": "done",
+   "progress": 100,
+   "summary": "همتای Weby (به‌جز فروشگاهِ آنلاین) — نسخهٔ ۱.۵.۰",
+   "how": "فروش و پورسانت و حسابِ نقدی، فیش‌های خودش، درخواستِ مرخصی (تأییدِ منابعِ انسانی)، کارت‌زنی با QRِ ۳۰ ثانیه‌ایِ ایستگاهِ گره‌خورده به دستگاه",
+   "files_changed": [
+    "inc/selfdesk.php",
+    "pages/my.php",
+    "pages/punch.php",
+    "pages/attendance.php",
+    "v.php",
+    "pages/print_payslip.php",
+    "index.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-SELFDESK",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-24",
+   "status": "done",
+   "progress": 100,
+   "summary": "همتای Weby (به‌جز فروشگاهِ آنلاین) — نسخهٔ ۱.۵.۰",
+   "how": "مصرفِ مواد بسته‌بندی روی ارسال، بدهی و تسویهٔ یک‌جای پیک، لینکِ نظرسنجیِ پس از خرید با هشدارِ امتیازِ کم",
+   "files_changed": [
+    "inc/ship.php",
+    "pages/shipments.php",
+    "pages/feedback.php",
+    "v.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-COURIER، X-FEEDBACK",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": "new-25",
+   "status": "done",
+   "progress": 100,
+   "summary": "همتای Weby (به‌جز فروشگاهِ آنلاین) — نسخهٔ ۱.۵.۰",
+   "how": "سندِ ناتراز، رویدادِ بی‌سند، و برابری‌نداشتنِ دفترهای فرعی با سرفصل‌ها؛ زدنِ سندِ جاافتاده",
+   "files_changed": [
+    "inc/reports.php",
+    "pages/ledger_audit.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-LAUDIT",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": 2177,
+   "status": "done",
+   "progress": 100,
+   "summary": "همتای Weby (به‌جز فروشگاهِ آنلاین) — نسخهٔ ۱.۵.۰",
+   "how": "امنیت: صفحه‌های چاپ (فاکتور، رسید، شیفت، برچسب، فیش) دیگر برای هر کاربرِ واردشده باز نیستند؛ فیشِ حقوق فقط برای صاحبش یا منابعِ انسانی. صفحهٔ «راهنما» برای هر بخش.",
+   "files_changed": [
+    "index.php",
+    "pages/print_payslip.php",
+    "pages/help.php"
+   ],
+   "decisions": [],
+   "how_to_test": "باز کردنِ print_payslip با کاربرِ دیگر ← ۴۰۳",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 0.5
   }
  ]
 }
