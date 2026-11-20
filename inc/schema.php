@@ -195,5 +195,14 @@ function pm_schema(): array {
         "ALTER TABLE doc_shares MODIFY token VARCHAR(32) NOT NULL, ADD COLUMN max_uses INT NOT NULL DEFAULT 0, ADD COLUMN fails INT NOT NULL DEFAULT 0, ADD COLUMN dead VARCHAR(10) NULL, ADD COLUMN last_at DATETIME NULL",
         "CREATE TABLE IF NOT EXISTS vf_log (id BIGINT AUTO_INCREMENT PRIMARY KEY, doc_id INT NOT NULL, share_id INT NULL, event VARCHAR(20) NOT NULL, ip VARCHAR(45) NULL, ua VARCHAR(250) NULL, info TEXT NULL, at DATETIME NOT NULL, KEY(doc_id))$E",
     ];
-    return [$m1, $m2, $m3, $m4, $m5];
+    $m6 = [ // واریز به حسابِ همکار (روالِ Weby payreq) + ارسال به سامانهٔ مودیان
+        "ALTER TABLE customers ADD COLUMN partner_xfer TINYINT NOT NULL DEFAULT 0, ADD COLUMN partner_xfer_acc INT NULL",
+        "CREATE TABLE IF NOT EXISTS payreqs (id INT AUTO_INCREMENT PRIMARY KEY, sale_id INT NOT NULL, customer_id INT NULL, bank_account_id INT NULL, amount BIGINT NOT NULL, status VARCHAR(10) NOT NULL DEFAULT 'pending',
+            deadline DATE NULL, note VARCHAR(300) NULL, created_by INT NULL, created_at DATETIME NOT NULL, decided_by INT NULL, decided_at DATETIME NULL, decision_note VARCHAR(300) NULL, receipt_id INT NULL, KEY(sale_id), KEY(status))$E",
+        "CREATE TABLE IF NOT EXISTS payreq_files (id INT AUTO_INCREMENT PRIMARY KEY, payreq_id INT NOT NULL, path VARCHAR(200) NOT NULL, name VARCHAR(200) NOT NULL, mime VARCHAR(60) NOT NULL, size INT NOT NULL, by_user INT NULL, at DATETIME NOT NULL, KEY(payreq_id))$E",
+        "ALTER TABLE docs ADD COLUMN tax_id VARCHAR(32) NULL, ADD COLUMN moadian_ref VARCHAR(80) NULL, ADD COLUMN moadian_at DATETIME NULL, ADD COLUMN moadian_msg TEXT NULL",
+        "ALTER TABLE products ADD COLUMN sstid VARCHAR(13) NULL",
+        "CREATE TABLE IF NOT EXISTS moadian_log (id BIGINT AUTO_INCREMENT PRIMARY KEY, doc_id INT NULL, action VARCHAR(20) NOT NULL, http INT NULL, request MEDIUMTEXT NULL, response MEDIUMTEXT NULL, at DATETIME NOT NULL, KEY(doc_id))$E",
+    ];
+    return [$m1, $m2, $m3, $m4, $m5, $m6];
 }

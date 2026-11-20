@@ -26,6 +26,15 @@ if ($d && !$editing) {
         $iss = official_issues($d);
         $kv .= '<form class="filters" data-api="doc_moadian" data-then="reload"><input type="hidden" name="id" value="' . $d['id'] . '"><label>سامانهٔ مودیان<select name="state">' . implode('', array_map(fn($k, $v) => '<option value="' . $k . '"' . (($d['moadian'] ?: 'none') === $k ? ' selected' : '') . '>' . h($v) . '</option>', array_keys(moadian_states()), moadian_states())) . '</select></label><label>شمارهٔ منحصربه‌فردِ مالیاتی<input name="tax_id" dir="ltr" value="' . h($d['opts']['tax_id'] ?? '') . '"></label><button class="btn sm">ثبت</button></form>'
             . ($iss['W'] ? '<ul class="muted">' . implode('', array_map(fn($x) => '<li>' . h($x) . '</li>', $iss['W'])) . '</ul>' : '');
+        if (moadian_on() && $d['status'] === 'issued' && can('docs.issue')) {
+            $mx = '<dl class="kv">' . ($d['tax_id'] ? '<dt>شمارهٔ مالیاتی</dt><dd dir="ltr">' . h($d['tax_id']) . '</dd>' : '') . ($d['moadian_ref'] ? '<dt>شمارهٔ مرجعِ سامانه</dt><dd dir="ltr">' . h($d['moadian_ref']) . '</dd>' : '')
+                . ($d['moadian_at'] ? '<dt>آخرین تبادل</dt><dd>' . jdate($d['moadian_at'], true) . '</dd>' : '') . '</dl>' . ($d['moadian_msg'] ? '<pre class="' . ($d['moadian'] === 'rejected' ? 'err' : 'muted') . '" style="white-space:pre-wrap">' . h($d['moadian_msg']) . '</pre>' : '');
+            [$mj, $me] = moadian_invoice($d);
+            if ($me && !in_array($d['moadian'], ['sent', 'accepted'], true)) $mx .= '<ul class="err">' . implode('', array_map(fn($x) => '<li>' . h($x) . '</li>', $me)) . '</ul>';
+            $mx .= '<div class="actions">' . (!in_array($d['moadian'], ['sent', 'accepted'], true) && !$me ? ui_btn_api('ارسال به سامانهٔ مودیان', 'moadian_send', ['id' => $d['id']], ['class' => 'primary', 'confirm' => 'صورتحساب امضا و به سامانهٔ مودیان فرستاده شود؟']) : '')
+                . ($d['moadian_ref'] ? ' ' . ui_btn_api('استعلامِ نتیجه', 'moadian_inquiry', ['id' => $d['id']]) : '') . '</div>';
+            $kv .= '<div class="card sub"><h3>اتصالِ سامانهٔ مودیان</h3>' . $mx . '</div>';
+        }
     }
     echo ui_card((doc_kinds()[$d['kind']] ?? '') . ' ' . fa_num((string)$d['number']), $kv, $act);
     echo '<div class="cols">';

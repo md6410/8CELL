@@ -59684,7 +59684,26 @@
       "ta": null
      }
     ]
-   }
+   },
+   "tests": [
+    {
+     "id": 18091,
+     "ref": "X-PTR",
+     "title": "واریز به حسابِ همکار",
+     "port": "",
+     "state": "",
+     "given": "همکار بی‌مجوز؛ با مجوز و حساب؛ فیشِ نامعتبر؛ دو فیش؛ تأیید؛ رد و درخواستِ تازه",
+     "expect_kind": "value",
+     "expect": "بی‌مجوز رد؛ رزرو و بیرون از صفِ خروج؛ بی‌فیش تأیید نمی‌شود؛ پس از تأیید سند و آزادشدن؛ رد بی‌دلیل ممنوع",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
   },
   {
    "id": 2348,
@@ -70278,6 +70297,23 @@
      "priority": 2,
      "status": "pass",
      "source": ""
+    },
+    {
+     "id": 18090,
+     "ref": "X-PAYTAX",
+     "title": "مالیاتِ پلکانی و سقفِ بیمه",
+     "port": "",
+     "state": "",
+     "given": "معافیت ۴۰۰م، ۱۰٪ تا ۶۰۰م، ۱۵٪ تا ۹۰۰م، ۲۰٪ بالاتر؛ درآمدِ ۱ میلیارد",
+     "expect_kind": "value",
+     "expect": "۸۵ میلیون؛ مبنای بیمه حداکثر ۷ برابرِ حداقلِ مزد",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
     }
    ]
   },
@@ -109689,6 +109725,78 @@
    "y": null,
    "flow": null,
    "tests": []
+  },
+  {
+   "id": "new-7",
+   "parent": 2355,
+   "order": 187,
+   "kind": "task",
+   "title": "ارسال به سامانهٔ مودیان",
+   "summary": "امضا، رمزنگاری و ارسالِ صورتحسابِ رسمی به API سامانهٔ مودیان و استعلامِ نتیجه — فقط با دکمه در پنل",
+   "details": "شمارهٔ مالیاتیِ ۲۲ نویسه (Verhoeff)، توکنِ JWS با گواهی، بستهٔ JWE (RSA-OAEP-256 + A256GCM) با کلیدِ عمومیِ سامانه، ثبتِ هر تبادل در moadian_log",
+   "inputs": [
+    {
+     "name": "صورتحسابِ رسمیِ صادرشده",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    },
+    {
+     "name": "کلید و گواهیِ کارپوشه",
+     "desc": "در تنظیمات",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "outputs": [
+    {
+     "name": "شمارهٔ مالیاتی و وضعیتِ سامانه",
+     "desc": "",
+     "use": "",
+     "unused": false,
+     "why": ""
+    }
+   ],
+   "process": "صدور ← بررسیِ خطاها (شناسهٔ کالا، کدِ واحد، شناسهٔ حافظه) ← ارسال ← شمارهٔ مرجع ← استعلام ← پذیرفته/رد با پیامِ سامانه",
+   "tech": "inc/moadian.php",
+   "priority": 2,
+   "status": "done",
+   "progress": 100,
+   "est_days": 3,
+   "final_days": null,
+   "start_date": null,
+   "done_date": null,
+   "assignee": "",
+   "tags": [
+    "moadian"
+   ],
+   "src_name": null,
+   "color": null,
+   "icon": "✔️",
+   "x": null,
+   "y": null,
+   "flow": null,
+   "tests": [
+    {
+     "id": 18089,
+     "ref": "X-MOADIAN",
+     "title": "ارسالِ کامل به سامانهٔ ساختگی",
+     "port": "",
+     "state": "",
+     "given": "صورتحسابِ رسمی با تخفیف؛ بی‌شناسهٔ کالا؛ سپس با تنظیمات و سامانهٔ ساختگی (tests/fixtures/moadian_mock.php)",
+     "expect_kind": "value",
+     "expect": "دو خطای پیش از ارسال؛ سپس امضا و رمزنگاریِ درست، شمارهٔ مرجع، استعلام = پذیرفته؛ ارسالِ دوباره رد",
+     "min": null,
+     "max": null,
+     "unit": "",
+     "kind": "unit",
+     "priority": 1,
+     "status": "pass",
+     "source": "tests/run.php"
+    }
+   ]
   }
  ],
  "dependencies": [
@@ -121953,6 +122061,250 @@
    "deviations": "",
    "remaining": "",
    "actual_days": 0.5
+  },
+  {
+   "node": "new-7",
+   "status": "review",
+   "progress": 90,
+   "summary": "تکمیلِ مانده‌ها — نسخهٔ ۱.۳.۰",
+   "how": "API نسخهٔ ۲: nonce ← توکنِ JWS (RS256، x5c، sigT) ← server-information ← بستهٔ JWS درونِ JWE (OAEP-256 دستی چون openssl ِ PHP فقط SHA-1 دارد) ← invoice ← inquiry-by-reference-id. شناسهٔ کالا از کدِ ردیف/کالا/پیش‌فرض و کدِ واحد از جدولِ تنظیمات.",
+   "files_changed": [
+    "inc/moadian.php",
+    "inc/schema.php",
+    "inc/routes.php",
+    "pages/doc.php",
+    "pages/settings.php",
+    "inc/products.php",
+    "pages/product.php",
+    "tests/run.php",
+    "tests/fixtures/moadian_mock.php"
+   ],
+   "decisions": [
+    "شبکه فقط با دکمه؛ هیچ مسیرِ کاربری به سامانه نمی‌رود.",
+    "کلیدِ خصوصی در تنظیمات (بی‌ممیزی) و هرگز در صفحه نمایش داده نمی‌شود.",
+    "سریالِ داخلی = شناسهٔ سند؛ شمارهٔ مالیاتی یک‌بار ساخته و ثابت می‌ماند."
+   ],
+   "how_to_test": "X-MOADIAN؛ روی سایت: کلید و گواهیِ کارپوشه را در تنظیمات ← فاکتور و سند بگذارید، اول با نشانیِ محیطِ آزمایشیِ سامانه امتحان کنید.",
+   "deviations": "آزمون با سامانهٔ ساختگی انجام شد؛ محیطِ ساخت به سامانهٔ واقعی دسترسی نداشت. کدهای واحد (پیش‌فرض عدد=1627) باید با جدولِ رسمی تطبیق داده شوند.",
+   "remaining": "یک ارسالِ واقعی در محیطِ آزمایشیِ سامانهٔ مودیان با کلیدِ کارپوشه.",
+   "actual_days": 1
+  },
+  {
+   "node": 2350,
+   "status": "review",
+   "progress": 95,
+   "summary": "تکمیلِ مانده‌ها — نسخهٔ ۱.۳.۰",
+   "how": "ارسالِ واقعی به سامانهٔ مودیان اضافه شد (گرهٔ «ارسال به سامانهٔ مودیان»)؛ ثبتِ دستیِ وضعیت هم برای کسب‌وکارِ بی‌اتصال می‌ماند.",
+   "files_changed": [
+    "inc/moadian.php",
+    "inc/schema.php",
+    "inc/routes.php",
+    "pages/doc.php",
+    "pages/settings.php",
+    "inc/products.php",
+    "pages/product.php",
+    "tests/run.php",
+    "tests/fixtures/moadian_mock.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-MOADIAN",
+   "deviations": "",
+   "remaining": "آزمونِ میدانی با محیطِ آزمایشیِ سامانه",
+   "actual_days": 1
+  },
+  {
+   "node": 2357,
+   "status": "done",
+   "progress": 100,
+   "summary": "تکمیلِ مانده‌ها — نسخهٔ ۱.۳.۰",
+   "how": "پیش از ارسال، خطاهای سامانه (شناسهٔ کالا، کدِ واحد، شناسهٔ حافظه، شمارهٔ مالیاتیِ مرجع برای اصلاح/ابطال/برگشت) روی صفحهٔ سند فهرست می‌شوند.",
+   "files_changed": [
+    "inc/moadian.php",
+    "pages/doc.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-MOADIAN",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": 2388,
+   "status": "done",
+   "progress": 100,
+   "summary": "تکمیلِ مانده‌ها — نسخهٔ ۱.۳.۰",
+   "how": "مالیاتِ حقوق پلکانی (تا ۵ پله، از قانونِ بودجهٔ هر سال در «نرخ‌های قانونِ کار») و سقفِ مبنای بیمه = ضریب (۷) × حداقلِ مزد.",
+   "files_changed": [
+    "inc/hr.php",
+    "pages/payroll.php",
+    "tests/run.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-PAYTAX",
+   "deviations": "پله‌ها و ارقام هر سال باید از بخشنامه وارد شوند؛ پیش‌فرض همان یک پلهٔ ۱۰٪ است.",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": 2396,
+   "status": "done",
+   "progress": 100,
+   "summary": "تکمیلِ مانده‌ها — نسخهٔ ۱.۳.۰",
+   "how": "payroll_tax (پلکانی) و payroll_ins_base (سقفِ بیمه) در payroll_calc.",
+   "files_changed": [
+    "inc/hr.php",
+    "pages/payroll.php",
+    "tests/run.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-PAYTAX",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": 2347,
+   "status": "done",
+   "progress": 100,
+   "summary": "تکمیلِ مانده‌ها — نسخهٔ ۱.۳.۰",
+   "how": "روالِ Weby: مجوز و حسابِ تعیین‌شده برای هر همکار؛ فروش با «واریز به حساب» بدهیِ همکار و رزرو (fulfil=await_pay) می‌شود؛ درخواستِ پرداخت با چند فیش (تصویر/PDF، نوع از محتوا)؛ صفِ «تأییدِ واریزها» برای حسابدار؛ تأیید = دریافت به همان حساب + سند + آزادشدن برای خروج؛ رد با دلیل و درخواستِ تازه؛ پیامکِ اختیاری (payreq_ok/payreq_no).",
+   "files_changed": [
+    "inc/payreq.php",
+    "inc/pos.php",
+    "inc/routes.php",
+    "inc/auth.php",
+    "inc/sms.php",
+    "inc/schema.php",
+    "pages/payreqs.php",
+    "pages/sale.php",
+    "pages/customer.php",
+    "pages/partners.php",
+    "pages/sales.php",
+    "assets/pos.js",
+    "index.php",
+    "tests/run.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-PTR",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": 2340,
+   "status": "done",
+   "progress": 100,
+   "summary": "تکمیلِ مانده‌ها — نسخهٔ ۱.۳.۰",
+   "how": "چرخهٔ «واریز به حساب» کامل شد.",
+   "files_changed": [
+    "inc/payreq.php",
+    "inc/pos.php",
+    "inc/routes.php",
+    "inc/auth.php",
+    "inc/sms.php",
+    "inc/schema.php",
+    "pages/payreqs.php",
+    "pages/sale.php",
+    "pages/customer.php",
+    "pages/partners.php",
+    "pages/sales.php",
+    "assets/pos.js",
+    "index.php",
+    "tests/run.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-PTR",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": 2344,
+   "status": "done",
+   "progress": 100,
+   "summary": "تکمیلِ مانده‌ها — نسخهٔ ۱.۳.۰",
+   "how": "نوعِ «واریز به حساب» در صندوق فقط برای همکارِ دارای مجوز دیده می‌شود؛ سرور هم جدا می‌سنجد.",
+   "files_changed": [
+    "assets/pos.js",
+    "inc/pos.php"
+   ],
+   "decisions": [],
+   "how_to_test": "X-PTR",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": 2305,
+   "status": "review",
+   "progress": 90,
+   "summary": "تکمیلِ مانده‌ها — نسخهٔ ۱.۳.۰",
+   "how": "اصلاحِ گزارش: برنامهٔ ایستگاهِ چاپ همان agent.py ِ Weby است و TSPL (چاپِ خامِ حرارتی، dpi، gap، density) و حالتِ direct را از پیش دارد؛ کاغذِ هر پرینتر در برنامه «driver: tspl» می‌گیرد.",
+   "files_changed": [
+    "tools/print-agent/agent.py"
+   ],
+   "decisions": [],
+   "how_to_test": "آزمون با پرینترِ واقعی",
+   "deviations": "",
+   "remaining": "آزمون با پرینترِ واقعی",
+   "actual_days": 1
+  },
+  {
+   "node": 2311,
+   "status": "review",
+   "progress": 90,
+   "summary": "تکمیلِ مانده‌ها — نسخهٔ ۱.۳.۰",
+   "how": "TSPL و direct در agent.py موجود است (نیازی به کدِ تازه نبود).",
+   "files_changed": [
+    "tools/print-agent/agent.py"
+   ],
+   "decisions": [],
+   "how_to_test": "آزمون با پرینترِ واقعی",
+   "deviations": "",
+   "remaining": "آزمون با پرینتر",
+   "actual_days": 1
+  },
+  {
+   "node": 2194,
+   "status": "done",
+   "progress": 100,
+   "summary": "تکمیلِ مانده‌ها — نسخهٔ ۱.۳.۰",
+   "how": "تکه‌های قالب‌پذیرِ تازه: topbar، footer، receipt (رسیدِ صندوق) و login، کنارِ sidebar.",
+   "files_changed": [
+    "parts/topbar.php",
+    "parts/footer.php",
+    "parts/receipt.php",
+    "parts/login.php",
+    "inc/ui.php",
+    "pages/login.php",
+    "pages/print_receipt.php"
+   ],
+   "decisions": [],
+   "how_to_test": "قالبی با parts/<نام>.php همان تکه را جایگزین می‌کند؛ صفحه‌ها در مرورگر بررسی شدند.",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
+  },
+  {
+   "node": 2203,
+   "status": "done",
+   "progress": 100,
+   "summary": "تکمیلِ مانده‌ها — نسخهٔ ۱.۳.۰",
+   "how": "زنجیرهٔ قالب ← هسته برای ۵ تکه.",
+   "files_changed": [
+    "parts/topbar.php",
+    "parts/footer.php",
+    "parts/receipt.php",
+    "parts/login.php",
+    "inc/ui.php",
+    "pages/login.php",
+    "pages/print_receipt.php"
+   ],
+   "decisions": [],
+   "how_to_test": "بازدیدِ صفحه‌ها",
+   "deviations": "",
+   "remaining": "",
+   "actual_days": 1
   }
  ]
 }

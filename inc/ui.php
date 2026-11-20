@@ -83,10 +83,10 @@ function ui_layout_start(string $title, string $page): void {
     do_action('head');
     echo '</head><body data-page="' . h($page) . '"><div class="app">';
     theme_part('sidebar', ['page' => $page, 'user' => $u]);
-    echo '<main><header class="top"><button class="btn icon menu-t" type="button" aria-label="منو">☰</button><h1>' . h($title) . '</h1><div class="who">' . h($u['name'] ?? '') . ' · <a href="' . page_url('me') . '">حسابِ من</a> · <a href="#" data-act="logout" data-args="{}" data-then="go:index.php">خروج</a></div></header><div class="content">';
+    echo '<main>'; theme_part('topbar', ['title' => $title, 'user' => $u, 'page' => $page]); echo '<div class="content">';
 }
 function ui_layout_end(): void {
-    echo '</div></main></div><div id="toast"></div><script>window.CSRF=' . json_encode(csrf_token()) . ';window.WEBY_KEY="c8";window.__scanSound=' . (setting('scan_sound', '1') === '1' ? 'true' : 'false') . ';</script><script src="assets/app.js?v=' . APP_VERSION . '"></script>';
+    echo '</div>'; theme_part('footer'); echo '</main></div><div id="toast"></div><script>window.CSRF=' . json_encode(csrf_token()) . ';window.WEBY_KEY="c8";window.__scanSound=' . (setting('scan_sound', '1') === '1' ? 'true' : 'false') . ';</script><script src="assets/app.js?v=' . APP_VERSION . '"></script>';
     do_action('footer');
     echo '</body></html>';
 }

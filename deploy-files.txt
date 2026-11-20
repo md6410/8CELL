@@ -34,8 +34,10 @@ inc/invoice.php
 inc/jalali.php
 inc/labels.php
 inc/ledger.php
+inc/moadian.php
 inc/otp.php
 inc/partner.php
+inc/payreq.php
 inc/passkey.php
 inc/pos.php
 inc/printq.php
@@ -83,6 +85,7 @@ pages/login.php
 pages/losses.php
 pages/me.php
 pages/partners.php
+pages/payreqs.php
 pages/payroll.php
 pages/perf.php
 pages/pl.php
@@ -109,6 +112,10 @@ pages/update.php
 pages/users.php
 pages/whops.php
 parts/.htaccess
+parts/footer.php
+parts/login.php
+parts/receipt.php
 parts/sidebar.php
+parts/topbar.php
 v.php
 print-api.php

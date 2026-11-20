@@ -154,7 +154,7 @@ function cart_view(int $cartId): array {
     $calc = $lines ? calc_doc($lines, ['doc_disc' => (int)$c['doc_disc']]) : ['total' => 0, 'sub' => 0, 'vat' => 0, 'lines' => [], 'lineDisc' => 0, 'docDisc' => 0];
     foreach ($items as $k => &$i) { $i['calc'] = $calc['lines'][$k] ?? null; $i['qty_show'] = qty_show((int)$i['qty'], $i['unit_id'] ? (int)$i['unit_id'] : null); }
     $cust = $c['customer_id'] ? row("SELECT id, name, mobile, credit_limit, is_partner FROM customers WHERE id=?", [$c['customer_id']]) : null;
-    if ($cust) { $cust['balance'] = customer_balance((int)$cust['id']); $cust['wallet'] = wallet_balance((int)$cust['id']); }
+    if ($cust) { $cust['balance'] = customer_balance((int)$cust['id']); $cust['wallet'] = wallet_balance((int)$cust['id']); $a = ptr_account((int)$cust['id']); $cust['xfer'] = $a ? ptr_account_text($a) : ''; }
     return ['cart' => $c, 'items' => $items, 'totals' => array_diff_key($calc, ['lines' => 1]), 'customer' => $cust];
 }
 
@@ -210,11 +210,16 @@ function sale_commit(array $in): int {
     if (!$lines) throw new UserError('سبد خالی است');
     $calc = calc_doc($lines, ['doc_disc' => (int)($in['doc_disc'] ?? 0), 'vat_pct' => vat_pct($d), 'tax_round' => tax_round_mode($d)]);
     if (!$channel) discount_assert($calc['sub'], $calc['lineDisc'] + $calc['docDisc'], $u);
+    $xfer = !$channel && ($in['partner_mode'] ?? '') === 'transfer';
+    if ($xfer) { // واریز به حساب: تا تأییدِ حسابدار بدهیِ همکار و کالا رزرو
+        if (!$cust || !ptr_ready($cust)) throw new UserError('«واریز به حساب» برای این مشتری فعال نیست (همکار + حسابِ تعیین‌شده)');
+        $in['payments'] = [['method' => 'credit', 'amount' => $calc['total']]]; $in['defer_stock'] = 1;
+    }
     $plan = pay_plan_validate($calc['total'], (array)($in['payments'] ?? []));
     if (!$channel && $u) foreach ($plan['payments'] as $p) if ($p['method'] === 'cash') { $cc = stacc_can_take_cash((int)$u['id']); if (!$cc['ok']) throw new UserError($cc['msg']); break; }
     $credit = 0; $wallet = 0; foreach ($plan['payments'] as $p) { if ($p['method'] === 'credit') $credit += $p['amount']; if ($p['method'] === 'wallet') $wallet += $p['amount']; }
     if (($credit || $wallet) && !$cust) throw new UserError('برای نسیه یا کیف پول مشتری را انتخاب کنید');
-    if ($credit) {
+    if ($credit && !$xfer) {
         if ($u && !$u['is_super'] && !$channel && $credit > (int)$u['max_credit']) throw new UserError('بیش از سقفِ نسیهٔ مجازِ شما (' . fa_money((int)$u['max_credit']) . ')');
         $c = row("SELECT credit_limit FROM customers WHERE id=?", [$cust]);
         if (customer_balance($cust) + $credit > (int)$c['credit_limit']) throw new UserError('بیش از سقفِ نسیهٔ مشتری (مانده‌ٔ مجاز: ' . fa_money(max(0, (int)$c['credit_limit'] - customer_balance($cust))) . ')');
@@ -222,12 +227,12 @@ function sale_commit(array $in): int {
     if ($wallet && $wallet > wallet_balance($cust)) throw new UserError('اعتبارِ کیف پول کافی نیست');
     $defer = !empty($in['defer_stock']);
     try {
-        $saleId = tx(function () use ($in, $token, $channel, $shift, $cb, $branch, $wh, $seller, $cust, $calc, $meta, $plan, $credit, $wallet, $defer, $d, $u) {
+        $saleId = tx(function () use ($in, $token, $channel, $shift, $cb, $branch, $wh, $seller, $cust, $calc, $meta, $plan, $credit, $wallet, $defer, $d, $u, $xfer) {
             $jy = substr(jdate($d, false, false), 0, 4);
             $sid = ins('sales', ['cart_token' => $token, 'channel_id' => $channel['id'] ?? null, 'branch_id' => $branch, 'cashbox_id' => $cb['id'] ?? null, 'shift_id' => $shift['id'] ?? null, 'warehouse_id' => $wh,
                 'seller_id' => $seller, 'customer_id' => $cust, 'partner_mode' => $in['partner_mode'] ?? null, 'ship_to' => !empty($in['ship_to']) ? json_encode($in['ship_to'], JSON_UNESCAPED_UNICODE) : null,
                 'd' => $d, 'at' => now(), 'subtotal' => $calc['sub'], 'line_disc' => $calc['lineDisc'], 'doc_disc' => $calc['docDisc'], 'tax' => $calc['vat'], 'round_adj' => $calc['roundAdj'], 'total' => $calc['total'],
-                'channel_fee' => (int)($in['channel_fee'] ?? 0), 'fulfil' => $defer ? 'pending' : 'done', 'note' => mb_cut((string)($in['note'] ?? ''), 400) ?: null]);
+                'channel_fee' => (int)($in['channel_fee'] ?? 0), 'fulfil' => $defer ? ($xfer ? 'await_pay' : 'pending') : 'done', 'note' => mb_cut((string)($in['note'] ?? ''), 400) ?: null]);
             upd('sales', ['number' => ($channel ? 'C' : 'S') . $jy . '-' . sprintf('%05d', doc_seq_next('sale-' . $jy))], 'id=?', [$sid]);
             $cartId = !empty($in['cart_id']) ? (int)$in['cart_id'] : null; $totalCost = 0;
             foreach ($calc['lines'] as $k => $l) {
@@ -265,6 +270,7 @@ function sale_commit(array $in): int {
         throw $e;
     }
     do_action('sale_committed', $saleId);
+    if ($xfer) { try { payreq_create($saleId, ['deadline' => $in['due'] ?? null]); } catch (Throwable $e) { error_log('payreq: ' . $e->getMessage()); } }
     if (($in['partner_mode'] ?? '') === 'hold') upd('sales', ['fulfil' => 'hold'], 'id=?', [$saleId]);
     if (($in['partner_mode'] ?? '') === 'ship') { try { pship_sms_route($saleId); } catch (Throwable $e) { error_log('pship: ' . $e->getMessage()); } }
     try { sms_notify_sale($saleId); } catch (Throwable $e) { error_log('sms: ' . $e->getMessage()); }

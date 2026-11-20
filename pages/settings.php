@@ -31,7 +31,14 @@ if ($tab === 'biz') {
         'doc_show_watermark' => ['نقشِ «پیش‌فاکتور»', 'select', 1, $yn], 'doc_show_validity' => ['خطِ اعتبارِ پیش‌فاکتور', 'select', 1, $yn], 'doc_show_words' => ['مبلغ به حروف', 'select', 1, $yn],
         'vf_on' => ['QRِ تأییدِ اصالت', 'select', 1, $yn], 'vf_name' => ['رابطِ پیش‌فرضِ اصالت (نام)', 'text'], 'vf_mobile' => ['رابطِ پیش‌فرضِ اصالت (موبایل)', 'text'], 'doc_default_notes' => ['توضیحاتِ پیش‌فرض', 'textarea'], 'doc_default_terms' => ['شرایطِ پیش‌فرض', 'textarea']];
     $v = []; foreach ($k as $n => $x) $v[$n] = doc_cfg($n);
+    $mk = ['moadian_on' => ['ارسال به سامانهٔ مودیان', 'select', 1, $yn], 'moadian_base' => ['نشانیِ API سامانه', 'ltr'], 'moadian_cert' => ['گواهیِ امضا (PEM)', 'textarea'],
+        'moadian_secret_key' => [setting('moadian_secret_key') ? 'کلیدِ خصوصی (ثبت شده؛ برای تعویض، کلیدِ تازه را بچسبانید)' : 'کلیدِ خصوصی (PEM)', 'textarea'],
+        'moadian_units' => ['کدِ واحدها در سامانه («نام=کد» در هر خط)', 'textarea'], 'moadian_sstid_default' => ['شناسهٔ ۱۳ رقمیِ پیش‌فرضِ کالا/خدمت', 'ltr']];
+    $mv = ['moadian_secret_key' => '']; foreach ($mk as $n => $x) if ($n !== 'moadian_secret_key') $mv[$n] = moadian_cfg($n) ?? setting($n, '');
+    $moadianCard = ui_card('سامانهٔ مودیان', '<p class="muted">شناسهٔ یکتای حافظه و کدِ اقتصادی از «پروفایلِ کسب‌وکار» خوانده می‌شوند. کلید و گواهی را از کارپوشهٔ مالیاتی بگیرید؛ کلیدِ خصوصی هرگز نمایش داده نمی‌شود. برای آزمون، نشانیِ محیطِ آزمایشیِ سامانه را بگذارید. کدِ واحدها را با جدولِ رسمیِ سامانه تطبیق دهید.</p>'
+        . ($ro ? '' : ui_form('settings_save', $mk, $mv)));
     echo ui_card('فاکتور و سند (همان تنظیماتِ اینورا)', $ro ? '' : ui_form('settings_save', $k, $v) . '<p class="muted">نمونهٔ شمارهٔ بعدیِ فاکتور: <b dir="ltr">' . h(fa_num(peek_seq('invoice', today()))) . '</b></p>');
+    echo $moadianCard;
 } else {
     $h = ''; foreach (features_builtin() as $k => [$t, $g, $def]) { $on = feature_on($k); $h .= '<tr><td>' . h($g) . '</td><td>' . h($t) . '</td><td>' . ($on ? ui_badge('روشن', 'ok') : ui_badge('خاموش')) . '</td><td>' . (can('ext.manage') ? ui_btn_api($on ? 'خاموش' : 'روشن', 'feature_toggle', ['key' => $k, 'on' => $on ? 0 : 1], ['class' => 'sm']) : '') . '</td></tr>'; }
     echo ui_card('امکاناتِ هسته', '<table class="tbl"><tr><th>گروه</th><th>امکان</th><th>وضعیت</th><th></th></tr>' . $h . '</table>');

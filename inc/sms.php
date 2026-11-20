@@ -12,6 +12,8 @@ function sms_tpl_catalog(): array {
         'credit_due' => ['یادآوریِ بدهی', ['NAME', 'AMOUNT'], ['AMOUNT']],
         'catalog_link' => ['لینکِ کاتالوگ', ['NAME', 'LINK'], ['LINK']],
         'partner_ship' => ['ارسال برای مشتریِ همکار', ['NAME', 'NUMBER', 'PARTNER'], ['NUMBER']],
+        'payreq_ok' => ['تأییدِ واریزِ همکار', ['NAME', 'NUMBER', 'AMOUNT'], ['NUMBER', 'AMOUNT']],
+        'payreq_no' => ['ردِ فیشِ واریزِ همکار', ['NAME', 'NUMBER', 'NOTE'], ['NUMBER']],
         'stock_loss_confirm' => ['تأییدِ ثبتِ ضرر', ['CODE'], ['CODE']],
     ]);
 }

@@ -29,6 +29,7 @@ if ($p === '') { $p = can('reports.dashboard') ? 'dashboard' : (can('pos.use') ?
 if (!isset($pages[$p])) { http_response_code(404); $p = 'me'; }
 [$title, $cap] = $pages[$p];
 if ($cap !== 'login' && !can($cap)) { http_response_code(403); ui_layout_start('دسترسی ندارید', $p); echo '<p class="empty">این دسترسی را ندارید.</p>'; ui_layout_end(); exit; }
+if ($p === 'payreq_file') { payreq_file_out(req_int('id')); }
 if (can('update.manage')) df_upd_maybe_auto();
 $file = apply_filters('page_file', ROOT . "/pages/$p.php", $p);
 try {

@@ -106,7 +106,7 @@ $T['8C-REP-02'] = function () { set_vat(0); $a = mk_product('الف', 5000000, 2
 foreach (['8C-SHOP-01', '8C-SHOP-02', '8C-SHOP-03'] as $k) $T[$k] = fn() => ['skip', 'ماژولِ فروشگاهِ آنلاین در این مرحله ساخته نشد'];
 // ── آزمون‌های تکمیلی (بیرون از فایلِ مشخصات)
 $T['X-CAPS'] = function () { $bad = []; foreach (pages_all() as $k => $p) if (empty($p[1])) $bad[] = "page:$k"; $public = ['me', 'time', 'login', 'otp_request', 'otp_verify', 'pk_login_options', 'pk_login', 'channel_catalog', 'channel_order', 'channel_status'];
-    foreach (api_routes() as $k => $r) { if (empty($r[0])) $bad[] = "api:$k"; if ($r[0] === 'public' && !in_array($k, $public, true)) $bad[] = "public:$k"; if ($r[0] !== 'public' && $r[0] !== 'login' && !isset(caps_flat()[$r[0]])) $bad[] = "cap:$k"; }
+    foreach (api_routes() as $k => $r) { if (empty($r[0])) $bad[] = "api:$k"; if ($r[0] === 'public' && !in_array($k, $public, true)) $bad[] = "public:$k"; if ($r[0] !== 'public' && $r[0] !== 'login' && array_diff(explode('|', $r[0]), array_keys(caps_flat()))) $bad[] = "cap:$k"; }
     foreach (pages_all() as $k => $p) if ($p[1] !== 'login' && !isset(caps_flat()[$p[1]])) $bad[] = "pagecap:$k"; return expect(!$bad, implode(' ', $bad) ?: 'همهٔ صفحه‌ها و APIها cap دارند'); };
 $T['X-JALALI'] = function () { $ok = jparse('1405/01/01') === '2026-03-21' && jdate('2026-03-21', false, false) === '1405/01/01' && jparse('۱۴۰۳/۱۲/۳۰') === '2025-03-20'; return expect($ok, jparse('1405/01/01') . ' ' . jparse('۱۴۰۳/۱۲/۳۰')); };
 $T['X-SCAN'] = function () { $a = scan_normalize('https://x.ir/t?k=ab 12'); $b = scan_normalize('۱۲۳۴'); return expect($a === 'AB12' && $b === '1234' && scan_normalize('') === '', "$a $b"); };
@@ -165,7 +165,7 @@ $T['X-INV-PARITY'] = function () {
     }
     return expect(!$bad, $bad ? implode(' | ', $bad) : count($cases) . ' سند همان نتیجهٔ اینورا'); };
 function mk_doc(array $x = []): int { return doc_save($x + ['kind' => 'invoice', 'buyer_name' => 'شرکت نمونه', 'lines' => [['name' => 'کالا', 'qty' => 3, 'price' => 100000]]]); }
-$T['X-INV-NUM'] = function () { settings_save(['doc_pat_invoice' => 'INV-{Y}{M}-{N}', 'doc_pad' => 3]); // پیش‌شماره برای همه $d = jparse('1405/02/15');
+$T['X-INV-NUM'] = function () { settings_save(['doc_pat_invoice' => 'INV-{Y}{M}-{N}', 'doc_pad' => 3]); // پیش‌شماره برای همه
     $a = doc_commit(mk_doc(['d' => '1405/02/15'])); $m = mk_doc(['d' => '1405/02/15', 'number' => 'INV-140502-005']); $mc = doc_commit($m); $b = doc_commit(mk_doc(['d' => '1405/02/16']));
     $dup = err(fn() => doc_commit(mk_doc(['number' => 'INV-140502-005']))); $pf = doc_commit(mk_doc(['kind' => 'proforma', 'd' => '1405/02/15']));
     return expect($a['number'] === 'INV-140502-001' && $mc['number'] === 'INV-140502-005' && $b['number'] === 'INV-140502-002' && !$dup['ok'] && $pf['number'] === 'P1405-001' && strlen((string)$a['token']) === 22 && (settings_save(['doc_pad' => 4, 'doc_pat_invoice' => '{Y}-{N}']) || true), "{$a['number']} {$b['number']} {$pf['number']}"); };
@@ -194,6 +194,47 @@ $T['X-VF'] = function () { settings_save(['sms_test_mode' => '1']); $d = mk_doc(
 $T['X-INV-SALERET'] = function () { set_vat(0); $p = mk_product('x', 100000, 5); open_shift(1); $s = sell([['product_id' => $p, 'qty' => 3]], [['method' => 'cash', 'amount' => 300000]]); $inv = doc_from_sale($s);
     return_commit($s, [['sale_item_id' => (int)val("SELECT id FROM sale_items WHERE sale_id=?", [$s]), 'qty' => 1]], 'خراب'); $cr = row("SELECT * FROM docs WHERE credit_ref=?", [$inv]);
     return expect($cr && $cr['kind'] === 'return' && (int)$cr['total'] === 100000 && acc_doc_rial(doc_get($inv)) === 200000, $cr['number'] ?? 'بی‌سند'); };
+
+// ── حقوق: مالیاتِ پلکانی و سقفِ بیمه
+$T['X-PAYTAX'] = function () { $L = labor_rates(); $L = ['tax_exempt' => 400000000, 'tax_pct' => 10, 'tax_s2_from' => 600000000, 'tax_s2_pct' => 15, 'tax_s3_from' => 900000000, 'tax_s3_pct' => 20] + $L;
+    $a = payroll_tax(1000000000, $L); $b = payroll_tax(350000000, $L); $c = payroll_tax(500000000, $L); $cap = payroll_ins_base(2000000000, $L); $nocap = payroll_ins_base(2000000000, ['ins_cap_factor' => 0] + $L);
+    return expect($a === 85000000 && $b === 0 && $c === 10000000 && $cap === 7 * (int)$L['min_monthly'] && $nocap === 2000000000, "$a $b $c $cap"); };
+// ── واریز به حسابِ همکار
+$T['X-PTR'] = function () { if (!defined('PAYREQ_TEST')) define('PAYREQ_TEST', 1); set_vat(0);
+    $bank = ins('bank_accounts', ['title' => 'ملت جاری', 'bank' => 'ملت', 'iban' => 'IR120120000000001234567890', 'owner' => 'فروشگاه', 'active' => 1]);
+    $cid = customer_save(['kind' => 'person', 'name' => 'همکارِ واریزی', 'mobile' => '09125550001', 'is_partner' => 1, 'credit_limit' => 0]);
+    $p = mk_product('گوشی', 1000000, 5); open_shift(1);
+    $no = err(fn() => sell([['product_id' => $p, 'qty' => 1]], [], ['customer_id' => $cid, 'partner_mode' => 'transfer']));
+    ptr_save($cid, true, $bank); $s = sell([['product_id' => $p, 'qty' => 2]], [], ['customer_id' => $cid, 'partner_mode' => 'transfer']); $sale = row("SELECT * FROM sales WHERE id=?", [$s]);
+    $r = payreq_open_for_sale($s); $inQ = in_array($s, array_map('intval', array_column(whops_out_queue(), 'id')), true); $res = (int)val("SELECT COALESCE(SUM(qty),0) FROM stock_reservations WHERE sale_id=?", [$s]);
+    $noFile = err(fn() => payreq_approve((int)$r['id']));
+    $tmp = tempnam(sys_get_temp_dir(), 'rc'); file_put_contents($tmp, "\xFF\xD8\xFF\xE0" . str_repeat('x', 100)); $bad = tempnam(sys_get_temp_dir(), 'rc'); file_put_contents($bad, '<?php echo 1;');
+    $badUp = err(fn() => payreq_add_files((int)$r['id'], ['name' => ['a.jpg'], 'tmp_name' => [$bad], 'error' => [0], 'size' => [13]]));
+    $n = payreq_add_files((int)$r['id'], ['name' => ['a.jpg', 'b.jpg'], 'tmp_name' => [$tmp, $tmp], 'error' => [0, 0], 'size' => [104, 104]]);
+    $bal0 = customer_balance($cid); payreq_approve((int)$r['id'], 'رسید'); $after = row("SELECT fulfil FROM sales WHERE id=?", [$s])['fulfil'];
+    $j = (int)val("SELECT COUNT(*) FROM journals WHERE source_type='customer_pay'");
+    $s2 = sell([['product_id' => $p, 'qty' => 1]], [], ['customer_id' => $cid, 'partner_mode' => 'transfer']); $r2 = payreq_open_for_sale($s2); $noReason = err(fn() => payreq_reject((int)$r2['id'], ''));
+    payreq_reject((int)$r2['id'], 'فیش ناخوانا'); $again = payreq_create($s2); $card = payreq_sale_card(sale_get($s2)); $cardOk = str_contains($card, 'ملت جاری') && str_contains($card, 'فیش ناخوانا') && str_contains($card, 'payreq_files');
+    return expect(!$no['ok'] && $sale['fulfil'] === 'await_pay' && $r && (int)$r['amount'] === 2000000 && !$inQ && $res === 2 && !$noFile['ok'] && !$badUp['ok'] && $n === 2 && $bal0 === 2000000 + 0 && customer_balance($cid) === 1000000
+        && $after === 'pending' && $j >= 1 && !$noReason['ok'] && $again > 0 && $cardOk && row("SELECT fulfil FROM sales WHERE id=?", [$s2])['fulfil'] === 'await_pay', "$no[msg] · $badUp[msg] · bal0=$bal0 · $after"); };
+
+// ── سامانهٔ مودیان: شمارهٔ مالیاتی، امضا/رمزنگاری و ارسالِ کامل به سامانهٔ ساختگی (tests/fixtures/moadian_mock.php روی php -S)
+$T['X-MOADIAN'] = function () { $F = __DIR__ . '/fixtures/';
+    $v = verhoeff_digit('236') === 3 && verhoeff_ok('2363') && !verhoeff_ok('2364');
+    $tid = moadian_tax_id('A11216', 1700000000, 77); $okTid = strlen($tid) === 22 && str_starts_with($tid, 'A11216') && hexdec(substr($tid, 6, 5)) === 19675 && hexdec(substr($tid, 11, 10)) === 77
+        && verhoeff_ok('6511216' . '019675' . '000000000077' . substr($tid, -1)); // A ← ۶۵ (کدِ ASCII)
+    $j = moadian_jwe(moadian_jws('{"a":"ب"}', file_get_contents($F . 'moadian_client_test.key'), file_get_contents($F . 'moadian_client_test.crt')), file_get_contents($F . 'moadian_srv_test.pub'), 'k1');
+    $back = explode('.', moadian_jwe_decrypt($j, file_get_contents($F . 'moadian_srv_test.key'))); $rt = mb64u_dec($back[1]) === '{"a":"ب"}';
+    settings_save(['biz_name' => 'فروشگاه', 'biz_national_id' => '10101010101', 'biz_economic_code' => '10101010101', 'biz_postal_code' => '1234567890', 'biz_address' => 'تهران', 'biz_memory_id' => 'A11216']);
+    $d = doc_save(['kind' => 'official', 'buyer_kind' => 'legal', 'buyer_name' => 'خریدار', 'buyer_national_id' => '10101010101', 'buyer_postal' => '1234567890', 'lines' => [['name' => 'گوشی', 'qty' => 2, 'price' => 50000000, 'unit' => 'عدد'], ['name' => 'نصب', 'qty' => 1, 'price' => 1000000, 'unit' => 'سرویس', 'code' => '2720000000017']], 'doc_disc' => 1000000]);
+    doc_commit($d); $e1 = moadian_invoice(doc_get($d))[1];
+    settings_save(['moadian_sstid_default' => '2330001234567', 'moadian_units' => "عدد=1627\nسرویس=1631"]); [$inv, $e2] = moadian_invoice(doc_get($d));
+    $okInv = $inv && !$e2 && $inv['header']['tbill'] === (int)doc_get($d)['total'] && $inv['body'][1]['sstid'] === '2720000000017' && $inv['body'][0]['mu'] === '1627' && $inv['header']['tob'] === 2 && $inv['header']['ins'] === 1;
+    $srv = @file_get_contents('http://127.0.0.1:8088/tests/fixtures/moadian_mock.php/nonce'); if (!$srv) return ['skip', 'سرورِ آزمون (php -S روی 8088) در دسترس نیست — بخشِ رمزنگاری: ' . ($v && $okTid && $rt && $okInv ? 'درست' : 'نادرست') . ' · ' . implode('؛ ', $e1)];
+    settings_save(['moadian_on' => '1', 'moadian_base' => 'http://127.0.0.1:8088/tests/fixtures/moadian_mock.php', 'moadian_secret_key' => file_get_contents($F . 'moadian_client_test.key'), 'moadian_cert' => file_get_contents($F . 'moadian_client_test.crt'), 'moadian_srv_key' => '']);
+    $ref = moadian_send($d); $twice = err(fn() => moadian_send($d)); $st = moadian_inquiry($d); $dd = doc_get($d);
+    return expect($v && $okTid && $rt && count($e1) >= 2 && $okInv && str_starts_with($ref, 'REF-') && !$twice['ok'] && $st === 'accepted' && $dd['tax_id'] === $inv['header']['taxid'] && (int)val("SELECT COUNT(*) FROM moadian_log WHERE doc_id=?", [$d]) >= 2,
+        "tid=$tid ref=$ref st=$st · " . ($dd['moadian_msg'] ?? '') . ' · ' . implode('؛ ', $e1)); };
 
 $res = []; $pass = 0; $fail = 0; $skip = 0;
 foreach ($T as $ref => $fn) {

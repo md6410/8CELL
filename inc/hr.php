@@ -83,8 +83,23 @@ function leave_request(array $in): int {
 /** نرخ‌های قانونِ کار — مصوبِ سالانه در تنظیمات، نه در کد (پیش‌فرض‌ها: مصوبهٔ ۱۴۰۵، برگرفته از Weby labor-rules.php؛ همه به ریال) */
 function labor_rates(): array {
     return setting_json('labor_rates', []) + ['min_daily' => 5541850, 'min_monthly' => 166255500, 'housing' => 30000000, 'food' => 22000000, 'marriage' => 5000000,
-        'child_factor' => 3, 'ins_pct' => 7, 'ins_er_pct' => 23, 'tax_exempt' => 400000000, 'tax_pct' => 10, 'over_factor' => 1.4];
+        'child_factor' => 3, 'ins_pct' => 7, 'ins_er_pct' => 23, 'tax_exempt' => 400000000, 'tax_pct' => 10, 'over_factor' => 1.4, 'ins_cap_factor' => 7,
+        'tax_s2_from' => 0, 'tax_s2_pct' => 0, 'tax_s3_from' => 0, 'tax_s3_pct' => 0, 'tax_s4_from' => 0, 'tax_s4_pct' => 0, 'tax_s5_from' => 0, 'tax_s5_pct' => 0];
 }
+/** پله‌های مالیاتِ حقوق (مادهٔ ۸۵ و قانونِ بودجهٔ هر سال): [از مبلغِ ماهانه، نرخ٪]؛ پلهٔ اول از سقفِ معافیت با «نرخِ مالیات». پلهٔ با «از» صفر خاموش است. */
+function payroll_tax_steps(array $L): array {
+    $st = [[(int)$L['tax_exempt'], (float)$L['tax_pct']]];
+    for ($i = 2; $i <= 5; $i++) { $f = (int)($L["tax_s{$i}_from"] ?? 0); if ($f > (int)$L['tax_exempt']) $st[] = [$f, (float)($L["tax_s{$i}_pct"] ?? 0)]; }
+    usort($st, fn($a, $b) => $a[0] <=> $b[0]); return $st;
+}
+/** مالیاتِ پلکانی: هر بخش از درآمدِ مشمول با نرخِ پلهٔ خودش */
+function payroll_tax(int $taxable, array $L): int {
+    $st = payroll_tax_steps($L); $t = 0.0;
+    foreach ($st as $i => [$from, $pct]) { $to = $st[$i + 1][0] ?? PHP_INT_MAX; if ($taxable > $from) $t += (min($taxable, $to) - $from) * $pct / 100; }
+    return (int)round($t);
+}
+/** سقفِ دستمزدِ مشمولِ بیمه = ضریب (۷) × حداقلِ مزدِ ماهانه؛ صفر یعنی بی‌سقف */
+function payroll_ins_base(int $base, array $L): int { $cap = (int)round((float)($L['ins_cap_factor'] ?? 0) * (int)$L['min_monthly']); return $cap > 0 ? min($base, $cap) : $base; }
 /** روزهای کاریِ واقعیِ ماه (بی‌تعطیلات) — مبنای نرخِ ساعتِ اضافه‌کاری */
 function hr_month_workdays(string $ym): int { [$a, $b] = jmonth_range($ym); $n = 0; for ($d = $a; $d <= $b; $d = date('Y-m-d', strtotime("$d +1 day"))) if (!holiday_info($d)['off']) $n++; return max(1, $n); }
 /**
@@ -93,7 +108,8 @@ function hr_month_workdays(string $ym): int { [$a, $b] = jmonth_range($ym); $n =
  *  - نرخِ ساعت = پایه ÷ (روزِ کاریِ واقعیِ ماه × ساعتِ روز)؛ اضافه‌کاری × ضریب
  *  - حقِ اولاد = ۳ × حداقلِ مزدِ روزانه × فرزند
  *  - مبنای بیمه = پایه + مسکن + اضافه‌کاری (بن و پورسانت/پاداش مشمول نیستند)
- *  - مالیات = نرخ × (ناخالص − بیمهٔ کارمند − معافیتِ ماهانه)
+ *  - مبنای بیمه حداکثر ۷ برابرِ حداقلِ مزدِ ماهانه (سقفِ تأمین اجتماعی)
+ *  - مالیات = پلکانی روی (ناخالص − بیمهٔ کارمند)، از سقفِ معافیت به بالا
  */
 function payroll_calc(int $empId, string $ym, array $extra = []): array {
     $e = row("SELECT * FROM employees WHERE id=?", [$empId]); if (!$e) throw new UserError('کارمند یافت نشد');
@@ -114,9 +130,9 @@ function payroll_calc(int $empId, string $ym, array $extra = []): array {
     if ($comm) $items[] = ['t' => 'پورسانت', 'a' => $comm, 'k' => 'earn', 'commission' => 1];
     foreach ((array)($extra['earn'] ?? []) as $x) if (to_int($x['a'] ?? 0)) $items[] = ['t' => (string)$x['t'], 'a' => to_int($x['a']), 'k' => 'earn'];
     $gross = array_sum(array_column($items, 'a'));
-    $insBase = $base + (int)$L['housing'] + $over;
+    $insBase = payroll_ins_base($base + (int)$L['housing'] + $over, $L);
     $ins = $e['insured'] ? (int)round($insBase * (float)$L['ins_pct'] / 100) : 0;
-    $tax = (int)round(max(0, $gross - $ins - (int)$L['tax_exempt']) * (float)$L['tax_pct'] / 100);
+    $tax = payroll_tax($gross - $ins, $L);
     if ($ins) $items[] = ['t' => 'بیمهٔ سهمِ کارمند (' . fa_num((string)$L['ins_pct']) . '٪)', 'a' => $ins, 'k' => 'ded', 'acc' => 'ins'];
     if ($tax) $items[] = ['t' => 'مالیاتِ حقوق', 'a' => $tax, 'k' => 'ded', 'acc' => 'tax'];
     $debt = to_int($extra['debt'] ?? 0); if ($debt) $items[] = ['t' => 'کسرِ بدهی', 'a' => $debt, 'k' => 'ded', 'acc' => 'debt'];

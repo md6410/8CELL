@@ -74,7 +74,8 @@ function user_load(int $uid): ?array {
     $u['branches'] = array_map('intval', array_column(rows("SELECT branch_id FROM user_branches WHERE user_id=?", [$uid]), 'branch_id'));
     return $u;
 }
-function can(string $cap, ?array $u = null): bool { $u = $u ?: current_user(); if (!$u) return false; return $u['is_super'] || in_array($cap, $u['caps'], true); }
+/** «a|b» یعنی هرکدام کافی است */
+function can(string $cap, ?array $u = null): bool { $u = $u ?: current_user(); if (!$u) return false; if ($u['is_super']) return true; foreach (explode('|', $cap) as $c) if (in_array($c, $u['caps'], true)) return true; return false; }
 function require_login(): array { $u = current_user(); if (!$u) throw new UserError('ابتدا وارد شوید', 401); return $u; }
 function require_cap(string $cap): void { require_login(); if (!can($cap)) throw new UserError('این دسترسی را ندارید', 403); }
 /** کاربر به این شعبه دسترسی دارد؟ (فهرستِ خالی = همهٔ شعبه‌ها) */

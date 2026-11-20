@@ -20,6 +20,8 @@
     var cu = v.customer;
     $('.cust-info').innerHTML = cu ? '<b>' + C.esc(cu.name) + '</b> ' + C.fa(cu.mobile || '') + (cu.is_partner == 1 ? ' <span class="badge warn">همکار</span>' : '') + '<br><small>بدهیِ نسیه: ' + C.money(cu.balance) + ' · سقف: ' + C.money(cu.credit_limit) + ' · کیف پول: ' + C.money(cu.wallet) + '</small> <button class="btn sm cust-x">حذف</button>' : '<span class="muted">مشتریِ گذری</span>';
     $('.partner').style.display = cu && cu.is_partner == 1 ? '' : 'none';
+    var xo = $('.pmode') ? $('.pmode').querySelector('option[value=transfer]') : null;
+    if (xo) { xo.disabled = !(cu && cu.xfer); xo.hidden = xo.disabled; if (xo.disabled && $('.pmode').value === 'transfer') $('.pmode').value = 'self'; }
     remain();
   }
   function call(a, data) { if (busy) return Promise.resolve(); busy = true; data.cart_id = V.cart.id; return C.api(a, data).then(function (d) { if (d && d.items) render(d); if (d && d.msg) C.toast(d.msg, 's'); return d; }).catch(function (e) { C.toast(e.message, 'e'); throw e; }).then(function (d) { busy = false; return d; }, function (e) { busy = false; throw e; }); }
@@ -60,6 +62,7 @@
     var data = { payments: p, partner_mode: $('.pmode') ? $('.pmode').value : '' };
     if (data.partner_mode === 'ship') { data.ship_to = { name: prompt('نامِ گیرنده:') || '', mobile: C.en(prompt('موبایلِ گیرنده:') || ''), address: prompt('نشانی:') || '' }; data.defer_stock = 1; }
     if (data.partner_mode === 'hold') data.defer_stock = 1;
+    if (data.partner_mode === 'transfer') { if (!confirm('واریز به حساب: ' + ((V.customer && V.customer.xfer) || '') + '\nسفارش تا تأییدِ فیش در انبار رزرو می‌ماند. ثبت شود؟')) return; data.payments = []; data.defer_stock = 1; }
     var due = $('.due') ? $('.due').value : ''; if (due) data.due = due;
     $('.checkout').disabled = true;
     call('pos_checkout', data).then(function (r) {

@@ -7,7 +7,7 @@ function pages_all(): array {
     return apply_filters('pages', [
         'dashboard' => ['داشبوردِ امروز', 'reports.dashboard', 'گزارش', 1],
         'pos' => ['صندوقِ فروش', 'pos.use', 'فروش', 1], 'shifts' => ['شیفت‌ها', 'pos.use', 'فروش', 1], 'sales' => ['فروش‌ها', 'docs.view', 'فروش', 1], 'sale' => ['فروش', 'docs.view', 'فروش', 0],
-        'docs' => ['فاکتورها', 'docs.view', 'فروش', 1], 'doc' => ['سند', 'docs.view', 'فروش', 0], 'partners' => ['همکارانِ فروش', 'partner.manage', 'فروش', 1], 'channels' => ['کانال‌های فروش', 'channels.manage', 'فروش', 1],
+        'docs' => ['فاکتورها', 'docs.view', 'فروش', 1], 'doc' => ['سند', 'docs.view', 'فروش', 0], 'partners' => ['همکارانِ فروش', 'partner.manage', 'فروش', 1], 'payreqs' => ['تأییدِ واریزها', 'bank.manage', 'مالی', 1], 'payreq_file' => ['فیش', 'docs.view', 'فروش', 0], 'channels' => ['کانال‌های فروش', 'channels.manage', 'فروش', 1],
         'products' => ['کالاها', 'products.view', 'کالا و انبار', 1], 'product' => ['کالا', 'products.view', 'کالا و انبار', 0], 'stock' => ['موجودی و ورود/خروج', 'stock.view', 'کالا و انبار', 1],
         'whops' => ['خروجِ سفارش‌ها', 'stock.out', 'کالا و انبار', 1], 'losses' => ['ضرر و عودت', 'stock.loss', 'کالا و انبار', 1], 'labels' => ['برچسب', 'labels.print', 'کالا و انبار', 1], 'print' => ['چاپگرِ مرکزی', 'print.manage', 'کالا و انبار', 1],
         'purchase' => ['خرید', 'purchase.view', 'خرید', 1], 'suppliers' => ['تأمین‌کنندگان', 'purchase.view', 'خرید', 1],
@@ -111,6 +111,12 @@ function api_routes(): array {
         'pos_checkout' => ['pos.use', fn($in) => pos_checkout((int)$in['cart_id'], (array)($in['payments'] ?? []), $in), 'POST'],
         'sale_return' => ['pos.return', fn($in) => ['id' => return_commit((int)$in['sale_id'], (array)($in['items'] ?? []), (string)($in['reason'] ?? ''), (string)($in['method'] ?? 'cash'))], 'POST'],
         'sale_doc' => ['docs.edit', fn($in) => ['id' => doc_from_sale((int)$in['sale_id'], (string)($in['kind'] ?? 'invoice'))], 'POST'],
+        'payreq_create' => ['pos.use|partner.manage', fn($in) => ['id' => payreq_create((int)$in['sale_id'], $in)], 'POST'],
+        'payreq_files' => ['pos.use|partner.manage|bank.manage', fn($in) => ['n' => payreq_add_files((int)$in['id'], $_FILES['receipt'] ?? []), 'msg' => 'فیش ثبت شد'], 'POST'],
+        'payreq_approve' => ['bank.manage', fn($in) => ['receipt_id' => payreq_approve((int)$in['id'], (string)($in['note'] ?? ''))], 'POST'],
+        'payreq_reject' => ['bank.manage', function ($in) { payreq_reject((int)$in['id'], (string)($in['note'] ?? '')); return ['ok' => true]; }, 'POST'],
+        'ptr_save' => ['partner.manage', function ($in) { ptr_save((int)$in['customer_id'], !empty($in['on']), (int)($in['acc'] ?? 0)); return ['ok' => true]; }, 'POST'],
+        'ptr_check' => ['pos.use', fn($in) => ['xfer' => ptr_ready((int)($in['customer_id'] ?? 0))]],
         'phold_release' => ['partner.manage', function ($in) { phold_release((int)$in['sale_id']); return ['ok' => true]; }, 'POST'],
         // فاکتور
         'doc_save' => ['docs.edit', fn($in) => ['id' => doc_save($in)], 'POST'],
@@ -122,6 +128,9 @@ function api_routes(): array {
         'doc_convert' => ['docs.edit', fn($in) => ['id' => doc_convert((int)$in['id'])], 'POST'],
         'doc_clone' => ['docs.edit', fn($in) => ['id' => doc_clone((int)$in['id'], isset(doc_kinds()[$in['kind'] ?? '']) ? ['kind' => $in['kind']] : [])], 'POST'],
         'doc_official' => ['docs.edit', function ($in) { doc_make_official((int)$in['id']); return ['ok' => true]; }, 'POST'],
+        'moadian_send' => ['docs.issue', fn($in) => ['ref' => moadian_send((int)$in['id']), 'msg' => 'به سامانه فرستاده شد؛ چند دقیقه بعد «استعلام» بزنید'], 'POST'],
+        'moadian_inquiry' => ['docs.issue', fn($in) => ['state' => $st = moadian_inquiry((int)$in['id']), 'msg' => moadian_states()[$st]], 'POST'],
+        'moadian_preview' => ['docs.issue', function ($in) { [$j, $e] = moadian_invoice(doc_get((int)$in['id']) ?: throw new UserError('سند یافت نشد')); return ['errors' => $e, 'json' => $j]; }],
         'doc_moadian' => ['docs.issue', function ($in) { doc_set_moadian((int)$in['id'], (string)$in['state'], (string)($in['tax_id'] ?? '')); return ['ok' => true]; }, 'POST'],
         'doc_credit' => ['docs.issue', fn($in) => ['id' => doc_credit_create((int)$in['id'], (array)($in['q'] ?? []), (string)($in['reason'] ?? ''), (string)($in['note'] ?? ''))], 'POST'],
         'doc_contact' => ['docs.edit', function ($in) { $m = norm_mobile($in['mobile'] ?? ''); if ($m !== '' && !mobile_ok($m)) throw new UserError('موبایل معتبر نیست'); upd('docs', ['contact_name' => trim((string)($in['name'] ?? '')) ?: null, 'contact_mobile' => $m ?: null], 'id=?', [(int)$in['id']]); audit('docs', $in['id'], 'contact', null, ['mobile' => $m], 'رابطِ اصالت'); return ['ok' => true]; }, 'POST'],
@@ -188,9 +197,11 @@ function api_password_change(array $in): array {
 function api_settings_save(array $in): array {
     $allowed = ['vat_pct', 'tax_round', 'total_round', 'fx_round', 'doc_template', 'doc_color', 'doc_font_size', 'doc_pat_invoice', 'doc_pat_proforma', 'doc_pat_official', 'doc_pat_credit', 'doc_pad', 'doc_start', 'doc_reset_yearly', 'proforma_valid_days', 'proforma_gap_days', 'doc_total_round', 'doc_total_round_dir', 'doc_tax_round', 'doc_show_seller', 'doc_show_bank', 'doc_show_bank_pf', 'doc_show_stamp', 'doc_show_sig', 'doc_show_watermark', 'doc_show_validity', 'doc_show_words', 'doc_digits', 'invoice_title', 'proforma_title', 'off_title', 'doc_header_text', 'vf_on', 'vf_name', 'vf_mobile', 'doc_default_notes', 'doc_default_terms', 'doc_vat_on', 'biz_memory_id', 'biz_branch_code', 'biz_province', 'biz_city', 'biz_fax', 'biz_email', 'biz_website', 'sms_test_mode', 'sms_retry_max', 'smsir_api_key', 'update_repo', 'update_branch', 'update_auto', 'update_interval', 'update_token', 'base_url',
         'reserve_minutes', 'staff_debt_pct', 'staff_debt_cap', 'shortage_to_staff', 'holiday_rule', 'thursday_off', 'holiday_url', 'fx_nav_key', 'fx_nav_unit', 'fx_max_gap', 'scan_sound', 'captcha_after', 'sess_ttl_min',
-        'pos_require_unit', 'loss_sms_confirm', 'own_seller_code', 'sms_otp_ttl', 'sms_otp_cooldown', 'sms_otp_domain', 'sms_retry_gap', 'channel_price_tolerance', 'hr_rules', 'labor_rates'];
+        'pos_require_unit', 'loss_sms_confirm', 'own_seller_code', 'sms_otp_ttl', 'sms_otp_cooldown', 'sms_otp_domain', 'sms_retry_gap', 'channel_price_tolerance', 'hr_rules', 'labor_rates', 'moadian_on', 'moadian_base', 'moadian_cert', 'moadian_secret_key', 'moadian_units', 'moadian_sstid_default'];
     $s = [];
-    foreach ($allowed as $k) if (array_key_exists($k, $in)) { if (in_array($k, ['smsir_api_key', 'update_token'], true) && $in[$k] === '') continue; $s[$k] = is_array($in[$k]) ? $in[$k] : trim((string)$in[$k]); }
+    foreach ($allowed as $k) if (array_key_exists($k, $in)) { if (in_array($k, ['smsir_api_key', 'update_token', 'moadian_secret_key'], true) && $in[$k] === '') continue;
+        if ($k === 'moadian_secret_key' && !openssl_pkey_get_private((string)$in[$k])) throw new UserError('کلیدِ خصوصیِ سامانهٔ مودیان معتبر نیست (PEM)');
+        if ($k === 'moadian_cert' && trim((string)$in[$k]) !== '' && !openssl_x509_read(moadian_pem((string)$in[$k], 'CERTIFICATE'))) throw new UserError('گواهیِ سامانهٔ مودیان معتبر نیست'); $s[$k] = is_array($in[$k]) ? $in[$k] : trim((string)$in[$k]); }
     if (isset($s['hr_rules'])) $s['hr_rules'] = array_map(fn($v) => is_numeric(en_num((string)$v)) ? to_float($v) : $v, $s['hr_rules']);
     if (isset($s['labor_rates'])) $s['labor_rates'] = array_map(fn($v) => to_float($v), $s['labor_rates']);
     settings_save($s);
