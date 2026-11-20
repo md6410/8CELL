@@ -53,7 +53,7 @@ function product_save(array $in): int {
             $d['updated_at'] = now();
             upd('products', $d, 'id=?', [$id]);
             [$b, $a] = audit_diff($old, $d); if ($a) audit('products', $id, 'update', $b, $a, 'کالا');
-            if ((int)$old['price'] !== $price) product_price_set($id, $price);
+            if ((int)$old['price'] !== $price) product_price_set($id, $price, 'manual', !empty($in['confirm_price']));
             catalog_touch($id);
         } else {
             $d['price'] = $price; $d['created_at'] = now(); $d['link_token'] = substr(bin2hex(random_bytes(8)), 0, 16);
@@ -78,18 +78,31 @@ function variant_add(int $pid, string $title, int $delta = 0, ?string $barcode =
     audit('product_variants', $id, 'create', null, ['title' => $title], 'ترکیبِ ' . $p['name']);
     return $id;
 }
-/** تغییرِ قیمت: تاریخچه، ممیزی، نگهبانِ نوسان */
-function product_price_set(int $pid, int $new): void {
+/**
+ * تغییرِ قیمت با تاریخچه و ممیزی + نگهبانِ نوسان (روالِ Weby price-guard.php):
+ * قیمتِ تازه با کمترین و بیشترین قیمتِ همان بازه (pg_win ساعت) سنجیده می‌شود؛
+ *  - منبعِ خودکار (همگام‌سازی/ماژول): قیمت اعمال نمی‌شود، کالا غیرفعال می‌شود (دوباره فعال‌کردن با مدیر)؛
+ *  - ویرایشِ دستی: بی‌تأییدِ صریح ($confirm) پذیرفته نمی‌شود — صفرِ اضافه در تایپ گرفته می‌شود.
+ */
+function product_price_set(int $pid, int $new, string $source = 'manual', bool $confirm = false): void {
     $p = row("SELECT id, name, price, price_guard_pct FROM products WHERE id=?", [$pid]);
     $old = (int)$p['price']; if ($old === $new) return;
+    $g = (float)$p['price_guard_pct'];
+    if (feature_on('price_guard') && $g > 0 && $old > 0) {
+        $win = max(1, (int)setting('pg_win', 24));
+        $ref = array_map('intval', array_column(rows("SELECT new_price FROM price_history WHERE product_id=? AND at>=?", [$pid, date('Y-m-d H:i:s', time() - $win * 3600)]), 'new_price'));
+        $ref[] = $old; $lo = min($ref); $hi = max($ref);
+        $spike = ($lo > 0 && abs($new - $lo) * 100 / $lo > $g) || ($hi > 0 && abs($new - $hi) * 100 / $hi > $g);
+        if ($spike && $source !== 'manual') {
+            upd('products', ['active' => 0], 'id=?', [$pid]);
+            audit('products', $pid, 'guard', ['price' => $old, 'active' => 1], ['price_seen' => $new, 'active' => 0], 'نگهبانِ نوسان: قیمتِ ' . fa_money($new) . ' بیش از ' . $g . '٪ با بازهٔ ' . $win . ' ساعته فاصله داشت؛ اعمال نشد و کالا غیرفعال شد');
+            catalog_touch($pid); return;
+        }
+        if ($spike && !$confirm) throw new UserError('تغییرِ قیمت از ' . fa_money($old) . ' به ' . fa_money($new) . ' بیش از ' . fa_num((string)$g) . '٪ است؛ اگر درست است دوباره با تأیید ذخیره کنید');
+    }
     upd('products', ['price' => $new, 'updated_at' => now()], 'id=?', [$pid]);
     ins('price_history', ['product_id' => $pid, 'old_price' => $old, 'new_price' => $new, 'at' => now(), 'user_id' => current_user()['id'] ?? null]);
     audit('products', $pid, 'update', ['price' => $old], ['price' => $new], 'قیمت');
-    $g = (float)$p['price_guard_pct'];
-    if (feature_on('price_guard') && $g > 0 && $old > 0 && abs($new - $old) * 100 / $old > $g) {
-        upd('products', ['active' => 0], 'id=?', [$pid]);
-        audit('products', $pid, 'guard', ['active' => 1], ['active' => 0], 'نگهبانِ نوسان: کالا غیرفعال شد (تغییرِ بیش از ' . $g . '٪)');
-    }
     do_action('price_changed', $pid, $old, $new);
     catalog_touch($pid);
 }

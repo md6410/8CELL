@@ -3,7 +3,7 @@ $id = req_int('id'); $p = $id ? product_get($id) : null; if ($id && !$p) throw n
 $f = ['name' => ['نام', 'text', 1], 'category_id' => ['دسته', 'select', 1, ui_opts("SELECT id, CONCAT(name,' (',code,')') name FROM categories")], 'item_type' => ['نوع', 'select', 1, wh_item_types()], 'brand' => ['برند', 'text'],
     'unit_id' => ['واحد', 'select', 0, ui_opts("SELECT id, name FROM units")], 'serial' => ['ردیابیِ دانه‌به‌دانه (کدِ ۳۳ نویسه)', 'check'], 'barcode' => ['بارکدِ کارخانه', 'text'], 'price' => ['قیمتِ فروش (ریال)', 'money', 1],
     'sale_price' => ['قیمتِ حراج', 'money'], 'sale_until' => ['حراج تا', 'date'], 'cost_extra' => ['هزینهٔ جانبیِ هر واحد', 'money'], 'seller_share_pct' => ['سهمِ فروشنده از سود ٪', 'float'], 'price_guard_pct' => ['نگهبانِ نوسانِ قیمت ٪', 'float'],
-    'min_stock' => ['حداقلِ موجودی (هشدار)', 'int'], 'warranty' => ['گارانتی', 'text'], 'weight_g' => ['وزن (گرم)', 'int'], 'dims' => ['ابعاد', 'text'], 'image' => ['نشانیِ تصویر', 'text'], 'description' => ['توضیح', 'textarea'], 'specs' => ['مشخصاتِ فنی', 'textarea'], 'inactive' => ['غیرفعال', 'check']];
+    'min_stock' => ['حداقلِ موجودی (هشدار)', 'int'], 'warranty' => ['گارانتی', 'text'], 'weight_g' => ['وزن (گرم)', 'int'], 'dims' => ['ابعاد', 'text'], 'image' => ['نشانیِ تصویر', 'text'], 'description' => ['توضیح', 'textarea'], 'specs' => ['مشخصاتِ فنی', 'textarea'], 'inactive' => ['غیرفعال', 'check'], 'confirm_price' => ['تأییدِ تغییرِ بزرگِ قیمت (نگهبانِ نوسان)', 'check']];
 $v = $p ? $p + ['inactive' => !$p['active']] : ['serial' => 1, 'item_type' => 'SAL'];
 if ($p) $v['sale_until'] = $p['sale_until'];
 $extra = $p ? '' : '<label class="field"><span>ترکیب‌ها (هر خط یک ترکیب، مثلاً رنگ/اندازه)</span><textarea id="vts" rows="3"></textarea></label>';

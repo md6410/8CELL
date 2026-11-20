@@ -11,13 +11,20 @@ function stacc_add(int $uid, int $amount, string $kind, ?string $rt = null, ?int
 function stacc_balance(int $uid, ?array $kinds = null): int {
     return (int)val("SELECT COALESCE(SUM(amount),0) FROM staff_ledger WHERE user_id=?" . ($kinds ? " AND kind IN ('" . implode("','", array_map('addslashes', $kinds)) . "')" : ''), [$uid]);
 }
+/** ردیف‌هایی که «نقدِ دست/بدهی» حساب می‌شوند (تنخواه نه) */
+function stacc_cash_kinds(): array { return ['shift_cash', 'handover', 'debt', 'shortage', 'repay', 'adjust']; }
 function stacc_salary(int $uid): int { return (int)val("SELECT base_salary FROM employees WHERE user_id=? AND active=1 LIMIT 1", [$uid]); }
+/** فروشِ نقد مجاز است؟ (مسدودی فقط دریافتِ نقد را می‌بندد، نه کارت و نه کلِ صندوق) */
+function stacc_can_take_cash(int $uid): array {
+    if (!stacc_blocked($uid)) return ['ok' => true, 'msg' => ''];
+    return ['ok' => false, 'msg' => 'بدهیِ نقدیِ شما به سقفِ مجاز رسیده (' . fa_money(stacc_balance($uid, stacc_cash_kinds())) . ' از ' . fa_money(stacc_cash_limit($uid)) . ' ریال). تا تسویه با حسابدار، دریافتِ نقد ممکن نیست؛ کارت‌خوان و کارت‌به‌کارت آزاد است.'];
+}
 /** سقف: بدهیِ بیش از ٪ حقوق ← مسدود؛ یا مسدودیِ دستی */
 function stacc_cash_limit(int $uid): int { $sal = stacc_salary($uid); return $sal > 0 ? (int)floor($sal * (float)setting('staff_debt_pct', 20) / 100) : (int)setting('staff_debt_cap', 0); }
 function stacc_blocked(int $uid): bool {
     if (setting('stacc_block_' . $uid) === '1') return true;
-    $lim = stacc_cash_limit($uid); if ($lim <= 0) return false;
-    return stacc_balance($uid) > $lim;
+    $lim = stacc_cash_limit($uid); if ($lim <= 0) return false; // کارمندِ بی‌پرونده سقف ندارد: نقصِ اداری نباید صندوق را بخواباند
+    return stacc_balance($uid, stacc_cash_kinds()) > $lim; // تنخواه عمداً بیرون است (درسِ Weby)
 }
 function stacc_block(int $uid, bool $on): void { settings_save(['stacc_block_' . $uid => $on ? '1' : '0']); }
 /** تحویلِ نقد به بانک/گاوصندوق */

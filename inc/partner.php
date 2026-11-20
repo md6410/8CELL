@@ -5,15 +5,17 @@ declare(strict_types=1);
 function partner_modes(): array { return ['self' => 'خرید برای خودش', 'ship' => 'ارسال برای مشتریِ همکار', 'hold' => 'نگه‌داری در انبار', 'transfer' => 'واریز به حساب']; }
 /** تخفیفِ خطی بینِ «تکی» (۱ عدد) و «بیشینه» (از max_qty به بالا) — هرگز گران‌تر از مشتریِ عادی */
 function partner_disc_pct(float $single, float $max, int $maxQty, int $qty): float {
-    if ($maxQty <= 1 || $qty >= $maxQty) return $qty >= $maxQty ? $max : $single;
-    if ($qty <= 1) return $single;
-    return $single + ($max - $single) * ($qty - 1) / ($maxQty - 1);
+    // همان partner_pct در Weby: سقفِ ۹۰٪، «بیشینه ≤ تکی» یعنی پله‌ای نیست
+    $one = max(0.0, min(90.0, $single)); $mx = max(0.0, min(90.0, $max)); $qty = max(1, $qty);
+    if ($mx <= $one) return $one;
+    if ($maxQty <= 1 || $qty >= $maxQty) return $mx;
+    return $one + ($mx - $one) * (($qty - 1) / ($maxQty - 1));
 }
 function partner_price(int $pid, ?int $vid, int $gradeId, int $qty): int {
     $base = retail_final_price($pid, $vid);
     $r = row("SELECT * FROM product_grade_prices WHERE product_id=? AND grade_id=?", [$pid, $gradeId]);
     $pct = $r ? partner_disc_pct((float)$r['disc_single'], (float)$r['disc_max'], (int)$r['max_qty'], max(1, $qty)) : (float)val("SELECT disc_pct FROM grades WHERE id=?", [$gradeId]);
-    $p = (int)floor($base * (100 - max(0, min(100, $pct))) / 100);
+    $p = (int)round($base * (100 - max(0, min(90, $pct))) / 100);
     return min($p, $base);
 }
 function partner_grade_price_save(int $pid, int $gid, $single, $max, $maxQty): void {

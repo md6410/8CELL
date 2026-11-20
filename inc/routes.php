@@ -67,7 +67,7 @@ function api_routes(): array {
         'sms_retry' => ['sms.manage', fn($in) => sms_retry((int)$in['id']), 'POST'],
         // کالا
         'product_save' => ['products.edit', fn($in) => ['id' => product_save($in)], 'POST'],
-        'product_price' => ['prices.edit', function ($in) { product_price_set((int)$in['id'], to_int($in['price'])); return ['ok' => true]; }, 'POST'],
+        'product_price' => ['prices.edit', function ($in) { product_price_set((int)$in['id'], to_int($in['price']), 'manual', !empty($in['confirm'])); return ['ok' => true]; }, 'POST'],
         'variant_add' => ['products.edit', fn($in) => ['id' => variant_add((int)$in['product_id'], (string)$in['title'], to_int($in['price_delta'] ?? 0), trim((string)($in['barcode'] ?? '')) ?: null, (string)($in['vcode'] ?? ''))], 'POST'],
         'product_duplicate' => ['products.edit', fn($in) => ['id' => product_duplicate((int)$in['id'], (string)($in['name'] ?? ''))], 'POST'],
         'product_link_sms' => ['products.view', fn($in) => plink_send_sms((int)$in['id'], (string)$in['mobile'], (string)($in['name'] ?? '')), 'POST'],

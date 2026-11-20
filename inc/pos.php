@@ -11,7 +11,6 @@ function shift_open(int $cashboxId, int $opening): int {
     $u = require_login();
     $cb = row("SELECT * FROM cashboxes WHERE id=? AND active=1", [$cashboxId]); if (!$cb) throw new UserError('صندوق یافت نشد');
     if (!branch_allowed((int)$cb['branch_id'])) throw new UserError('به این شعبه دسترسی ندارید', 403);
-    if (stacc_blocked((int)$u['id'])) throw new UserError('حسابِ شما به‌دلیلِ بدهیِ بیش از سقف مسدود است؛ با مدیر تماس بگیرید');
     if ($s = shift_current($cashboxId)) throw new UserError('این صندوق شیفتِ باز دارد' . ((int)$s['user_id'] !== (int)$u['id'] ? ' (کاربرِ دیگر)' : ''));
     if (shift_of_user((int)$u['id'])) throw new UserError('شما در صندوقِ دیگری شیفتِ باز دارید');
     try { $id = ins('shifts', ['cashbox_id' => $cashboxId, 'user_id' => $u['id'], 'opening_cash' => max(0, $opening), 'opened_at' => now(), 'open_key' => $cashboxId]); }
@@ -79,24 +78,31 @@ function pos_scan(int $cartId, string $raw, int $qty = 1): array {
     return tx(function () use ($c, $r, $code, $wh, $qty) {
         if ($r['type'] === 'unit') {
             $u = $r['row'];
+            if ($u['status'] !== 'in_stock') throw new UserError('این دانه در وضعیتِ «' . wh_unit_status_label($u['status']) . '» است و فروختنی نیست');
             if ((int)$u['warehouse_id'] !== $wh) throw new UserError('این دانه در انبارِ این شعبه نیست');
+            if (!(int)val("SELECT active FROM products WHERE id=?", [$u['product_id']])) throw new UserError('این کالا غیرفعال است و فروخته نمی‌شود');
             stock_reserve((int)$c['id'], (int)$c['cashbox_id'], (int)$u['product_id'], $u['variant_id'] ? (int)$u['variant_id'] : null, $wh, 1, (int)$u['id']);
             $id = ins('cart_items', ['cart_id' => $c['id'], 'product_id' => $u['product_id'], 'variant_id' => $u['variant_id'], 'unit_id' => $u['id'], 'qty' => 1, 'price' => price_for((int)$u['product_id'], $u['variant_id'] ? (int)$u['variant_id'] : null, $c['customer_id'] ? (int)$c['customer_id'] : null, 1)]);
             return ['item_id' => $id, 'msg' => 'افزوده شد: ' . product_card((int)$u['product_id'], $u['variant_id'] ? (int)$u['variant_id'] : null)['name']];
         }
         if (in_array($r['type'], ['product', 'variant', 'lot'], true)) {
             $pid = $r['type'] === 'product' ? (int)$r['row']['id'] : (int)$r['row']['product_id']; $vid = $r['type'] === 'product' ? null : ($r['type'] === 'variant' ? (int)$r['row']['id'] : ($r['row']['variant_id'] ? (int)$r['row']['variant_id'] : null));
-            $p = product_get($pid); if (!$p || !$p['active']) throw new UserError('این کالا فعال نیست');
+            $p = product_get($pid); if (!$p || !$p['active']) throw new UserError('«' . ($p['name'] ?? 'کالا') . '» غیرفعال است و فروخته نمی‌شود');
+            if ($vid && !(int)val("SELECT active FROM product_variants WHERE id=?", [$vid])) throw new UserError('این ترکیب غیرفعال است');
+            if ($r['type'] === 'lot' && (int)$r['row']['warehouse_id'] === $wh && wh_lot_balance((int)$r['row']['id']) < 1) throw new UserError('موجودیِ این محموله صفر است');
+            $service = $p['item_type'] === 'REP' && !val("SELECT 1 FROM lots WHERE product_id=? LIMIT 1", [$pid]); // خدمت بی‌انبار: رزرو و سقفِ موجودی ندارد
             if ($p['serial'] && setting('pos_require_unit', '0') === '1') throw new UserError('کدِ دانه را اسکن کنید');
             if (!$vid && $r['type'] === 'product' && val("SELECT 1 FROM product_variants WHERE product_id=? AND active=1 LIMIT 1", [$pid])) throw new UserError('این کالا ترکیب دارد؛ کدِ ترکیب را اسکن کنید');
             $qb = $p['unit_id'] ? max(1, $qty) * (int)unit_of((int)$p['unit_id'])['scale'] : max(1, $qty);
             $ex = row("SELECT * FROM cart_items WHERE cart_id=? AND product_id=? AND (variant_id<=>?) AND unit_id IS NULL", [$c['id'], $pid, $vid]);
-            stock_reserve((int)$c['id'], (int)$c['cashbox_id'], $pid, $vid, $wh, $qb);
+            if (!$service) stock_reserve((int)$c['id'], (int)$c['cashbox_id'], $pid, $vid, $wh, $qb);
             if ($ex) { $nq = (int)$ex['qty'] + $qb; upd('cart_items', ['qty' => $nq, 'price' => price_for($pid, $vid, $c['customer_id'] ? (int)$c['customer_id'] : null, $nq)], 'id=?', [$ex['id']]); $id = (int)$ex['id']; }
             else $id = ins('cart_items', ['cart_id' => $c['id'], 'product_id' => $pid, 'variant_id' => $vid, 'qty' => $qb, 'price' => price_for($pid, $vid, $c['customer_id'] ? (int)$c['customer_id'] : null, $qb)]);
             return ['item_id' => $id, 'msg' => 'افزوده شد: ' . product_card($pid, $vid)['name']];
         }
         if ($r['type'] === 'customer') { cart_set_customer((int)$c['id'], (int)$r['row']['id']); return ['msg' => 'مشتری: ' . $r['row']['name']]; }
+        if ($r['type'] === 'sale') throw new UserError('این کد یک فروش (' . $r['row']['number'] . ') است، نه کالا؛ برای مرجوعی از «فروش‌ها» بروید');
+        if ($r['type'] === 'doc') throw new UserError('این کد یک فاکتور است، نه کالا');
         throw new UserError('کدِ «' . $code . '» ناشناخته است');
     });
 }
@@ -107,7 +113,7 @@ function cart_set_qty(int $itemId, $qty): void {
     $q = qty_in($qty, $it['unit_id'] ? (int)$it['unit_id'] : null); if ($q <= 0) { cart_remove($itemId); return; }
     tx(function () use ($it, $c, $q) {
         q("DELETE FROM stock_reservations WHERE cart_id=? AND unit_id IS NULL AND product_id=? AND (variant_id<=>?)", [$c['id'], $it['product_id'], $it['variant_id']]);
-        stock_reserve((int)$c['id'], (int)$c['cashbox_id'], (int)$it['product_id'], $it['variant_id'] ? (int)$it['variant_id'] : null, cart_wh($c), $q);
+        if (!(val("SELECT item_type FROM products WHERE id=?", [$it['product_id']]) === 'REP' && !val("SELECT 1 FROM lots WHERE product_id=? LIMIT 1", [$it['product_id']]))) stock_reserve((int)$c['id'], (int)$c['cashbox_id'], (int)$it['product_id'], $it['variant_id'] ? (int)$it['variant_id'] : null, cart_wh($c), $q);
         upd('cart_items', ['qty' => $q, 'price' => price_for((int)$it['product_id'], $it['variant_id'] ? (int)$it['variant_id'] : null, $c['customer_id'] ? (int)$c['customer_id'] : null, $q)], 'id=?', [$it['id']]);
     });
 }
@@ -205,6 +211,7 @@ function sale_commit(array $in): int {
     $calc = calc_doc($lines, ['doc_disc' => (int)($in['doc_disc'] ?? 0), 'vat_pct' => vat_pct($d), 'tax_round' => tax_round_mode($d)]);
     if (!$channel) discount_assert($calc['sub'], $calc['lineDisc'] + $calc['docDisc'], $u);
     $plan = pay_plan_validate($calc['total'], (array)($in['payments'] ?? []));
+    if (!$channel && $u) foreach ($plan['payments'] as $p) if ($p['method'] === 'cash') { $cc = stacc_can_take_cash((int)$u['id']); if (!$cc['ok']) throw new UserError($cc['msg']); break; }
     $credit = 0; $wallet = 0; foreach ($plan['payments'] as $p) { if ($p['method'] === 'credit') $credit += $p['amount']; if ($p['method'] === 'wallet') $wallet += $p['amount']; }
     if (($credit || $wallet) && !$cust) throw new UserError('برای نسیه یا کیف پول مشتری را انتخاب کنید');
     if ($credit) {

@@ -80,8 +80,10 @@ $T['8C-STF-01'] = function () { set_vat(0); $p = mk_product('x', 1000000, 5, 800
 function stf02(): int { set_vat(0); $p = mk_product('x', 500000, 30, 100000); commission_rule_save(['name' => '۵٪', 'tiers' => [['from' => 0, 'pct' => 5]]]); open_shift(1); $s = sell([['product_id' => $p, 'qty' => 25]], [['method' => 'cash', 'amount' => 12500000]]);
     $before = commission_month(1, jym(today())); return_commit($s, [['sale_item_id' => (int)val("SELECT id FROM sale_items WHERE sale_id=?", [$s]), 'qty' => 1]], 'برگشت'); return $before; }
 $T['8C-STF-02'] = function () { $before = stf02(); $after = commission_month(1, jym(today())); return expect($before === 500000 && $after === 480000, "$before → $after"); };
-$T['8C-STF-03'] = function () { $u = mk_user('st', 'کارمند', ['seller']); employee_save(['name' => 'کارمند', 'base_salary' => 100000000, 'user_id' => $u]); stacc_add($u, 21000000, 'debt', null, null, 'وام');
-    $r = err(fn() => shift_open(1, 0)); set_current_user($u); $r = err(fn() => shift_open(1, 0)); return expect(stacc_blocked($u) && !$r['ok'], 'مسدود=' . (stacc_blocked($u) ? 'true' : 'false') . ' · ' . $r['msg']); };
+$T['8C-STF-03'] = function () { set_vat(0); $p = mk_product('x', 1000, 5); $u = mk_user('st', 'کارمند', ['seller']); employee_save(['name' => 'کارمند', 'base_salary' => 100000000, 'user_id' => $u]); stacc_add($u, 21000000, 'debt', null, null, 'وام');
+    stacc_add($u, 50000000, 'petty', null, null, 'تنخواه'); open_shift($u); set_current_user($u);
+    $cash = err(fn() => sell([['product_id' => $p, 'qty' => 1]], [['method' => 'cash', 'amount' => 1000]])); $card = err(fn() => sell([['product_id' => $p, 'qty' => 1]], [['method' => 'card', 'amount' => 1000]]));
+    return expect(stacc_blocked($u) && !$cash['ok'] && $card['ok'], 'مسدود=' . (stacc_blocked($u) ? 'true' : 'false') . ' · ' . $cash['msg']); };
 $T['8C-HR-01'] = function () { $e = employee_save(['name' => 'رضا']); $jy = (int)substr(jtoday(), 0, 4); leave_request(['employee_id' => $e, 'kind' => 'paid', 'from' => "$jy/01/15", 'days' => 23]);
     $r = err(fn() => leave_request(['employee_id' => $e, 'kind' => 'paid', 'from' => "$jy/02/10", 'to' => "$jy/02/14"])); return expect($r['msg'] === 'مانده ۳ روز است', $r['msg']); };
 $T['8C-HR-02'] = function () { stf02(); $e = employee_save(['name' => 'مدیر', 'base_salary' => 100000000, 'user_id' => 1]); $id = payslip_save($e, jym(today())); $t = payslip_text($id); return expect(str_contains($t, 'پورسانت ۴۸۰٬۰۰۰'), mb_substr($t, 0, 220)); };
@@ -122,7 +124,9 @@ $T['X-WHOPS'] = function () { set_vat(0); $p = mk_product('دستگاه', 5000, 
     $ch = mk_channel(); $r = channel_order_commit($ch, ['ext_id' => 'S1', 'items' => [['product_id' => $p, 'qty' => 1]]]); set_current_user(1);
     $no = err(fn() => whops_order_close($r['sale_id'])); whops_order_scan_item($r['sale_id'], $c[1]); $dup = err(fn() => whops_order_scan_item($r['sale_id'], $c[1])); whops_order_close($r['sale_id']);
     $s = row("SELECT * FROM sales WHERE id=?", [$r['sale_id']]); return expect(!$no['ok'] && !$dup['ok'] && $s['fulfil'] === 'shipped' && (int)$s['cost'] === 3000 && wh_unit_by_code($c[1])['status'] === 'out' && stock_on_hand($p) === 1, $s['fulfil'] . ' cost=' . $s['cost']); };
-$T['X-GUARD'] = function () { $p = mk_product('x', 100000); q("UPDATE products SET price_guard_pct=30 WHERE id=?", [$p]); product_price_set($p, 110000); $a = (int)val("SELECT active FROM products WHERE id=?", [$p]); product_price_set($p, 200000); $b = (int)val("SELECT active FROM products WHERE id=?", [$p]); return expect($a === 1 && $b === 0, "$a/$b"); };
+$T['X-GUARD'] = function () { $p = mk_product('x', 100000); q("UPDATE products SET price_guard_pct=30 WHERE id=?", [$p]); product_price_set($p, 110000); $a = (int)val("SELECT active FROM products WHERE id=?", [$p]);
+    $m = err(fn() => product_price_set($p, 1100000)); product_price_set($p, 200000, 'auto'); $b = row("SELECT active, price FROM products WHERE id=?", [$p]); product_price_set($p, 200000, 'manual', true);
+    return expect($a === 1 && !$m['ok'] && (int)$b['active'] === 0 && (int)$b['price'] === 110000 && (int)val("SELECT price FROM products WHERE id=?", [$p]) === 200000, $m['msg']); };
 $T['X-DUP'] = function () { $p = mk_product('ژله', 1000); variant_add($p, 'توت‌فرنگی'); variant_add($p, 'پرتقال'); $d = product_duplicate($p, 'ژلهٔ ویژه'); $a = product_get($p); $b = product_get($d);
     return expect($a['base_code'] !== $b['base_code'] && count(product_variants($d)) === 2 && code_family_valid($b['base_code']) && product_variants($d)[0]['code'] === $b['base_code'] . '-VAR.01', $b['base_code']); };
 $T['X-ACCSHARE'] = function () { ins('acc_partners', ['name' => 'الف', 'coef' => 2]); ins('acc_partners', ['name' => 'ب', 'coef' => 1]); $ym = str_replace('/', '-', jym(today())); ins('acc_expenses', ['title' => 'اجاره', 'amount' => 1000, 'monthly' => 1, 'from_ym' => $ym, 'created_at' => now()]);
@@ -140,6 +144,10 @@ $T['X-HOLIDAY'] = function () { $j = json_encode([['event_name' => 'تاسوعا
     return expect(count($r) === 1 && $r[0]['jm'] === 4 && $r[0]['jd'] === 4 && $a && !$b, json_encode($r, JSON_UNESCAPED_UNICODE)); };
 $T['X-FX'] = function () { $n = fx_parse_navasan('{"usd_sell":{"value":"95,000"}}', 'toman')['USD'] ?? 0; $t = fx_parse_tgju_profile('{"summary":{"price":{"plain":"960,000"}},"info":{"currency_unit":"ریال"}}');
     $p = fx_pick($n, $t, 20); $bad = fx_pick(950000, 95000, 20); return expect($n === 950000 && $t === 960000 && $p['rate'] === 960000 && $bad['rate'] === 0, "$n $t {$p['rate']}"); };
+
+$T['X-SERVICE'] = function () { set_vat(0); $p = product_save(['name' => 'نصب و راه‌اندازی', 'price' => 500000, 'item_type' => 'REP', 'serial' => 0]); open_shift(1); $c = cart_open();
+    pos_scan((int)$c['id'], (string)val("SELECT base_code FROM products WHERE id=?", [$p]), 2); $r = pos_checkout((int)$c['id'], [['method' => 'card', 'amount' => 1000000]]);
+    return expect((int)val("SELECT total FROM sales WHERE id=?", [$r['sale_id']]) === 1000000, $r['number']); };
 
 $res = []; $pass = 0; $fail = 0; $skip = 0;
 foreach ($T as $ref => $fn) {
