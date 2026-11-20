@@ -89,9 +89,6 @@ function api_routes(): array {
         'print_station_create' => ['print.manage', fn($in) => print_station_create((string)($in['name'] ?? '')), 'POST'],
         'print_job' => ['labels.print', fn($in) => print_job_create($in), 'POST'],
         'print_jobs' => ['labels.print', fn($in) => array_map('print_job_public', rows("SELECT * FROM print_jobs ORDER BY id DESC LIMIT 30")), 'GET'],
-        'agent_hello' => ['public', fn($in) => agent_hello($in), 'POST'],
-        'agent_poll' => ['public', fn($in) => agent_poll(), 'POST'],
-        'agent_report' => ['public', fn($in) => agent_report($in), 'POST'],
         // خرید
         'supplier_save' => ['purchase.edit', fn($in) => ['id' => supplier_save($in)], 'POST'],
         'po_save' => ['purchase.edit', fn($in) => ['id' => po_save($in)], 'POST'],

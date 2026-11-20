@@ -11,9 +11,8 @@ $cust = $shift; ?>
 <div id="pos" class="pos" data-methods="<?= h(json_encode(pay_methods(), JSON_UNESCAPED_UNICODE)) ?>">
 <div>
   <section class="card"><div class="grid" style="grid-template-columns:1fr 90px auto">
-    <input class="scan-in" placeholder="اسکن یا تایپِ کد و Enter…" autocomplete="off"><input class="qty" value="۱" title="تعداد" inputmode="numeric"><button class="btn cam" type="button">📷 دوربین</button></div>
-    <div class="scanbox" style="display:none;margin-top:8px"></div><select class="scan-cam" style="display:none;margin-top:6px"></select>
-    <div class="scan-msg msg muted"></div>
+    <input id="posScan" class="scan-in" placeholder="اسکن یا تایپِ کد و Enter…" autocomplete="off" data-scan-keep data-scan-confirm><input class="qty" value="۱" title="تعداد" inputmode="numeric"><button class="btn cam" type="button">📷 دوربین</button></div>
+    <div class="msg muted" style="margin:6px 0;min-height:1.6em"></div>
     <div class="pick" style="position:relative"><input class="prod-q" placeholder="جست‌وجوی نامِ کالا…"></div></section>
   <section class="card"><div class="tw"><table class="tbl cart"><thead><tr><th>کالا</th><th>تعداد</th><th>فی</th><th>تخفیف</th><th>مبلغ</th><th></th></tr></thead><tbody></tbody></table></div>
     <div class="actions"><span class="sums muted"></span><button class="btn sm docdisc" type="button">تخفیفِ فاکتور</button></div></section>
@@ -27,4 +26,4 @@ $cust = $shift; ?>
     <div class="actions"><button class="btn primary big checkout" type="button">ثبتِ فروش</button></div></section>
   <section class="card"><p class="muted">شیفتِ <?= fa_num($shift['id']) ?> · <?= h($shift['cbname']) ?> · از <?= jdate($shift['opened_at'], true) ?></p><a class="btn" href="<?= h(page_url('shifts')) ?>">بستنِ شیفت</a></section>
 </div></div>
-<script src="assets/vendor/zxing.min.js" defer></script><script src="assets/scan.js?v=<?= APP_VERSION ?>" defer></script><script src="assets/pos.js?v=<?= APP_VERSION ?>" defer></script>
+<script src="assets/vendor/zxing.min.js" defer></script><script src="assets/scan-feedback.js?v=<?= APP_VERSION ?>" defer></script><script src="assets/scan-box.js?v=<?= APP_VERSION ?>" defer></script><script src="assets/pos.js?v=<?= APP_VERSION ?>" defer></script>

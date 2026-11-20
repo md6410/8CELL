@@ -1,0 +1,14 @@
+{
+  "sites": [
+    {
+      "name": "فروشگاه",
+      "api_url": "https://example.ir/print-api.php",
+      "token": "توکنی-که-از-پنل-مدیریت-کپی-می‌کنید",
+      "enabled": true
+    }
+  ],
+  "poll_seconds": 5,
+  "web_port": 8765,
+  "engine": "auto",
+  "printers": []
+}

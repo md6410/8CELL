@@ -103,7 +103,7 @@ $T['8C-REP-02'] = function () { set_vat(0); $a = mk_product('الف', 5000000, 2
     $c = mk_channel(); channel_order_commit($c, ['ext_id' => 'D1', 'items' => [['product_id' => $b, 'qty' => 1]]]); set_current_user(1); $d = dash_today(); return expect(str_contains($d['text'], 'جمع ۷٬۰۰۰٬۰۰۰'), $d['text']); };
 foreach (['8C-SHOP-01', '8C-SHOP-02', '8C-SHOP-03'] as $k) $T[$k] = fn() => ['skip', 'ماژولِ فروشگاهِ آنلاین در این مرحله ساخته نشد'];
 // ── آزمون‌های تکمیلی (بیرون از فایلِ مشخصات)
-$T['X-CAPS'] = function () { $bad = []; foreach (pages_all() as $k => $p) if (empty($p[1])) $bad[] = "page:$k"; $public = ['me', 'time', 'login', 'otp_request', 'otp_verify', 'pk_login_options', 'pk_login', 'agent_hello', 'agent_poll', 'agent_report', 'channel_catalog', 'channel_order', 'channel_status'];
+$T['X-CAPS'] = function () { $bad = []; foreach (pages_all() as $k => $p) if (empty($p[1])) $bad[] = "page:$k"; $public = ['me', 'time', 'login', 'otp_request', 'otp_verify', 'pk_login_options', 'pk_login', 'channel_catalog', 'channel_order', 'channel_status'];
     foreach (api_routes() as $k => $r) { if (empty($r[0])) $bad[] = "api:$k"; if ($r[0] === 'public' && !in_array($k, $public, true)) $bad[] = "public:$k"; if ($r[0] !== 'public' && $r[0] !== 'login' && !isset(caps_flat()[$r[0]])) $bad[] = "cap:$k"; }
     foreach (pages_all() as $k => $p) if ($p[1] !== 'login' && !isset(caps_flat()[$p[1]])) $bad[] = "pagecap:$k"; return expect(!$bad, implode(' ', $bad) ?: 'همهٔ صفحه‌ها و APIها cap دارند'); };
 $T['X-JALALI'] = function () { $ok = jparse('1405/01/01') === '2026-03-21' && jdate('2026-03-21', false, false) === '1405/01/01' && jparse('۱۴۰۳/۱۲/۳۰') === '2025-03-20'; return expect($ok, jparse('1405/01/01') . ' ' . jparse('۱۴۰۳/۱۲/۳۰')); };

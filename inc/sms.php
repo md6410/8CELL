@@ -5,7 +5,7 @@ declare(strict_types=1);
 /** کلیدهای قالب: [عنوان، پارامترها، پارامترهای دقیق (بریدن ممنوع)] */
 function sms_tpl_catalog(): array {
     return apply_filters('sms_tpl_catalog', [
-        'otp' => ['کدِ ورود', ['CODE'], ['CODE']],
+        'otp' => ['کدِ ورود (خطِ آخرِ الگو: @دامنه #VERIFICATIONCODE#)', ['NAME', 'CODE', 'VERIFICATIONCODE'], ['CODE', 'VERIFICATIONCODE']],
         'sale_receipt' => ['رسیدِ فروش (پیامکِ نهایی)', ['NAME', 'NUMBER', 'AMOUNT', 'LINK'], ['NUMBER', 'AMOUNT', 'LINK']],
         'doc_link' => ['لینکِ فاکتور', ['NAME', 'NUMBER', 'LINK'], ['NUMBER', 'LINK']],
         'credit_due' => ['یادآوریِ بدهی', ['NAME', 'AMOUNT'], ['AMOUNT']],
@@ -18,13 +18,25 @@ function sms_templates(): array { return setting_json('sms_templates', []); }
 function sms_tpl_id(string $key): string { return (string)(sms_templates()[$key]['id'] ?? ''); }
 function sms_tpl_enabled(string $key): bool { $t = sms_templates()[$key] ?? null; return $t && !empty($t['id']) && ($t['on'] ?? 1); }
 function sms_test_mode(): bool { return setting('sms_test_mode', '1') === '1'; }
-function sms_retry_max(): int { return max(1, (int)setting('sms_retry_max', 3)); }
+function sms_retry_max(): int { return max(0, min(20, (int)setting('sms_retry_max', 6))); }
+function sms_retry_gap(): int { return max(1, min(720, (int)setting('sms_retry_gap', 5))); }
+/** صفِ تلاشِ دوباره (cron یا بازدیدِ پنل): فقط شکست‌های قابلِ تکرار، نه OTP و نه آزمون؛ تلاشِ n‌ام n×فاصله صبر می‌کند */
+function sms_retry_due(int $limit = 20): int {
+    $n = 0; $max = sms_retry_max(); if ($max <= 0) return 0;
+    foreach (rows("SELECT * FROM sms_log WHERE ok=0 AND retryable=1 AND kind NOT IN ('otp','test') AND tries<=? ORDER BY id LIMIT " . (int)$limit, [$max]) as $r) {
+        if (time() - strtotime($r['at']) < (int)$r['tries'] * sms_retry_gap() * 60) continue;
+        try { sms_retry((int)$r['id']); $n++; } catch (Throwable $e) { upd('sms_log', ['retryable' => 0], 'id=?', [$r['id']]); }
+    }
+    return $n;
+}
 function sms_param_max(): int { return 25; }
+/** پارامترهایی که بریدنشان معنا را خراب می‌کند (از Weby) */
+function sms_exact_params(): array { return ['LINK', 'CODE', 'TOKEN', 'ORDER', 'ORDER_NUMBER', 'NUMBER', 'AMOUNT', 'FEE', 'CARD', 'HOLO', 'DATE', 'TRACK', 'MOBILE', 'VERIFICATIONCODE']; }
 function sms_gate_why(string $key): string { if (!sms_tpl_id($key)) return 'قالبِ «' . (sms_tpl_catalog()[$key][0] ?? $key) . '» در تنظیماتِ پیامک ثبت نشده است'; if (!sms_tpl_enabled($key)) return 'این پیامک خاموش است'; return ''; }
 
 /** هماهنگیِ پارامترها با سقفِ پنل: دقیق‌ها بریده نمی‌شوند (خطا)، متن‌ها با «…» */
 function sms_fit_params(array $params, array $exact = []): array {
-    $out = []; $max = sms_param_max();
+    $out = []; $max = sms_param_max(); $exact = array_merge($exact, sms_exact_params());
     foreach ($params as $k => $v) {
         $v = trim(preg_replace('/\s+/u', ' ', (string)$v));
         if (mb_strlen($v) > $max) {
@@ -37,18 +49,24 @@ function sms_fit_params(array $params, array $exact = []): array {
 }
 /** تنها گلوگاهِ شبکه */
 function smsir_request(string $path, array $payload): array {
-    if (sms_test_mode()) return ['ok' => true, 'msg' => 'حالتِ آزمایشی: ارسال نشد ولی ثبت شد', 'raw' => '{"test":true}', 'retryable' => false];
-    $key = (string)setting('smsir_api_key', '');
-    if ($key === '') return ['ok' => false, 'msg' => 'کلید ثبت نشده است', 'raw' => '', 'retryable' => false];
-    $r = http_req('POST', 'https://api.sms.ir/v1/' . ltrim($path, '/'), $payload, ['X-API-KEY' => $key, 'Accept' => 'application/json', 'Content-Type' => 'application/json'], 12);
-    if ($r['code'] == 0) return ['ok' => false, 'msg' => 'اتصال به پنلِ پیامک برقرار نشد', 'raw' => mb_cut($r['error'], 800), 'retryable' => true];
-    $j = json_decode($r['body'], true);
-    $ok = is_array($j) && (int)($j['status'] ?? 0) === 1;
-    return ['ok' => $ok, 'msg' => $ok ? 'ارسال شد' : (string)($j['message'] ?? ('پاسخِ نامعتبر از پنل (' . $r['code'] . ')')), 'raw' => mb_cut($r['body'], 800), 'retryable' => !$ok && $r['code'] >= 500];
+    if (sms_test_mode()) return ['ok' => true, 'msg' => 'حالتِ آزمایشی — پیامک واقعاً ارسال نشد.', 'raw' => '', 'retryable' => false, 'test' => true];
+    $key = trim((string)setting('smsir_api_key', ''));
+    if ($key === '') return ['ok' => false, 'msg' => 'کلید API پنلِ پیامک ثبت نشده است.', 'raw' => '', 'retryable' => false];
+    if (!function_exists('curl_init')) return ['ok' => false, 'msg' => 'cURL روی سرور نیست', 'raw' => '', 'retryable' => false];
+    $ch = curl_init('https://api.sms.ir/v1/' . ltrim($path, '/'));
+    curl_setopt_array($ch, [CURLOPT_RETURNTRANSFER => true, CURLOPT_POST => true, CURLOPT_POSTFIELDS => json_encode($payload, JSON_UNESCAPED_UNICODE),
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json', 'Accept: application/json', 'x-api-key: ' . $key, 'Expect:'],
+        // کاربر پشتِ فرمِ ورود منتظر است؛ IPv6 روی بعضی هاست‌ها چند ثانیه تأخیر می‌اندازد
+        CURLOPT_CONNECTTIMEOUT => 5, CURLOPT_TIMEOUT => 8, CURLOPT_IPRESOLVE => CURL_IPRESOLVE_V4]);
+    $raw = curl_exec($ch); $err = curl_error($ch); curl_close($ch);
+    if ($raw === false) return ['ok' => false, 'msg' => 'ارتباط با سرورِ پیامک برقرار نشد: ' . $err, 'raw' => '', 'retryable' => true];
+    $j = json_decode((string)$raw, true); $ok = (int)($j['status'] ?? 0) === 1;
+    // هر شکست در خودِ تماس با پنل (شبکه، اعتبارِ تمام‌شده…) قابلِ تکرار است
+    return ['ok' => $ok, 'msg' => (string)($j['message'] ?? ($ok ? 'ارسال شد' : 'پاسخِ نامعتبر از پنلِ پیامک')), 'raw' => mb_cut((string)$raw, 800), 'retryable' => !$ok];
 }
 function sms_send_template(string $mobile, string $tplId, array $params): array {
     $p = []; foreach ($params as $k => $v) $p[] = ['name' => (string)$k, 'value' => (string)$v];
-    return smsir_request('send/verify', ['mobile' => $mobile, 'templateId' => (int)$tplId, 'parameters' => $p]);
+    return smsir_request('send/verify', ['mobile' => en_num($mobile), 'templateId' => (int)$tplId, 'parameters' => $p]);
 }
 /** ارسال با کلیدِ قالب: همهٔ بن‌بست‌ها پیش از شبکه با پیامِ مشخص */
 function sms_send_tpl(string $mobile, string $key, array $params, string $kind = 'notify', array $ctx = []): array {
@@ -80,12 +98,12 @@ function sms_retry(int $logId): array {
     if (!$r) throw new UserError('ردیف یافت نشد');
     if ($r['ok']) throw new UserError('این پیامک قبلاً رفته است');
     if ($r['kind'] === 'otp') throw new UserError('کدِ یک‌بارمصرف دوباره فرستاده نمی‌شود؛ کدِ تازه بخواهید');
-    if ((int)$r['tries'] >= sms_retry_max()) throw new UserError('سقفِ تلاشِ دوباره پر شده است');
+    if ((int)$r['tries'] > sms_retry_max()) throw new UserError('سقفِ تلاشِ دوباره پر شده است');
     $params = json_decode((string)$r['params'], true) ?: [];
     $cat = sms_tpl_catalog()[$r['tpl_key']] ?? [null, [], []];
     $fit = sms_fit_params($params, $cat[2]);
     $res = $fit['error'] ? ['ok' => false, 'msg' => $fit['error'], 'raw' => '', 'retryable' => false] : sms_send_template($r['mobile'], sms_tpl_id($r['tpl_key']) ?: '0', $fit['params']);
-    upd('sms_log', ['ok' => $res['ok'] ? 1 : 0, 'msg' => mb_cut($res['msg'], 300), 'raw' => $res['raw'], 'tries' => (int)$r['tries'] + 1, 'at' => now()], 'id=?', [$logId]);
+    upd('sms_log', ['ok' => $res['ok'] ? 1 : 0, 'msg' => mb_cut($res['msg'], 300), 'raw' => $res['raw'] ?? '', 'retryable' => !empty($res['retryable']) ? 1 : 0, 'tries' => (int)$r['tries'] + 1, 'at' => now()], 'id=?', [$logId]);
     return $res;
 }
 function sms_ref_log(string $type, int $id): array { return rows("SELECT * FROM sms_log WHERE ref_type=? AND ref_id=? ORDER BY id DESC", [$type, $id]); }

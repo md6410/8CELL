@@ -10,6 +10,6 @@ RewriteRule \.pm\.json$ - [F,L]
 <FilesMatch "\.(json|md|txt|py|sql|log)$">
   Require all denied
 </FilesMatch>
-<FilesMatch "^(index|api|v|install)\.php$">
+<FilesMatch "^(index|api|v|install|print-api)\.php$">
   Require all granted
 </FilesMatch>

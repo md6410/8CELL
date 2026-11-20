@@ -22,8 +22,12 @@
     $('.partner').style.display = cu && cu.is_partner == 1 ? '' : 'none';
     remain();
   }
-  function call(a, data) { if (busy) return Promise.resolve(); busy = true; data.cart_id = V.cart.id; return C.api(a, data).then(function (d) { if (d && d.items) render(d); if (d && d.msg) C.toast(d.msg, 's'); return d; }).catch(function (e) { C.toast(e.message, 'e'); if (window.Scanner) window.Scanner.beep(false); throw e; }).then(function (d) { busy = false; return d; }, function (e) { busy = false; throw e; }); }
-  function scan(code) { if (!code) return Promise.resolve(false); $('.msg').textContent = 'در حالِ بررسی: ' + code; return call('pos_scan', { code: code, qty: C.toInt($('.qty').value) || 1 }).then(function (d) { $('.msg').textContent = d && d.msg ? 'خوانده شد: ' + d.msg + ' — کالای بعدی' : ''; $('.qty').value = '۱'; return true; }, function (e) { $('.msg').textContent = e.message; return false; }); }
+  function call(a, data) { if (busy) return Promise.resolve(); busy = true; data.cart_id = V.cart.id; return C.api(a, data).then(function (d) { if (d && d.items) render(d); if (d && d.msg) C.toast(d.msg, 's'); return d; }).catch(function (e) { C.toast(e.message, 'e'); throw e; }).then(function (d) { busy = false; return d; }, function (e) { busy = false; throw e; }); }
+  function scan(code) { if (!code) return Promise.resolve(false); $('.msg').textContent = 'در حالِ بررسی: ' + code; var box = function () { return document.getElementById('scanBox'); };
+    return call('pos_scan', { code: code, qty: C.toInt($('.qty').value) || 1 }).then(function (d) { $('.msg').textContent = d && d.msg ? 'خوانده شد: ' + d.msg + ' — کالای بعدی' : ''; $('.qty').value = '۱'; if (window.scanFeedback) window.scanFeedback.ok(box() && !box().hidden ? box() : null, code); return true; },
+      function (e) { $('.msg').textContent = e.message; if (window.scanFeedback) window.scanFeedback.fail(box() && !box().hidden ? box() : null, e.message); return false; }); }
+  // دوربین (scan-box.js) مقدار را با رویدادِ ساختگی می‌گذارد؛ تایپِ دستی با Enter
+  $('.scan-in').addEventListener('input', function (e) { if (e.isTrusted) return; var v = this.value.trim(); this.value = ''; scan(v); });
   // اسکنرِ USB یا تایپ: Enter
   $('.scan-in').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); var v = this.value.trim(); this.value = ''; scan(v); } });
   root.addEventListener('change', function (e) { if (e.target.classList.contains('q')) call('cart_qty', { item_id: e.target.getAttribute('data-id'), qty: C.en(e.target.value) }); });
@@ -37,7 +41,7 @@
     if (t.classList.contains('addpay')) addPay('card', 0);
     if (t.classList.contains('delpay')) { t.closest('.pay-row').remove(); remain(); }
     if (t.classList.contains('fill')) { var row = t.closest('.pay-row'); row.querySelector('.pa').value = ''; var r = left(); row.querySelector('.pa').value = C.money(Math.max(0, r)); remain(); }
-    if (t.classList.contains('cam')) { var box = $('.scanbox'); if (box.style.display === 'none') { box.style.display = ''; window.Scanner.start({ box: box, keep: true, camSelect: $('.scan-cam'), msg: function (m, bad) { $('.msg').textContent = m; }, onCode: scan }); } else { window.Scanner.stop(); box.style.display = 'none'; } }
+    if (t.classList.contains('cam')) { var b = document.getElementById('scanBox'); if (b && !b.hidden) window.stopScan(); else if (window.startScan) window.startScan('posScan'); }
     if (t.classList.contains('checkout')) checkout();
   });
   C.customerPicker($('.cust-q'), function (c) { $('.cust-q').value = ''; call('cart_customer', { customer_id: c.id }); });

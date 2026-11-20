@@ -176,5 +176,8 @@ function pm_schema(): array {
     "CREATE TABLE IF NOT EXISTS acc_expenses (id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(160) NOT NULL, amount BIGINT NOT NULL, monthly TINYINT NOT NULL DEFAULT 0, ym CHAR(7) NULL, from_ym CHAR(7) NULL, to_ym CHAR(7) NULL, created_at DATETIME NOT NULL)$E",
     "CREATE TABLE IF NOT EXISTS acc_settles (id INT AUTO_INCREMENT PRIMARY KEY, partner_id INT NOT NULL, amount BIGINT NOT NULL, d DATE NOT NULL, note VARCHAR(300) NULL, created_at DATETIME NOT NULL)$E",
     ];
-    return [$m1];
+    $m2 = [ // ایستگاهِ چاپ با پروتکلِ Weby (print-api.php: hello/claim/status)
+        "ALTER TABLE print_jobs ADD COLUMN attempts INT NOT NULL DEFAULT 0, ADD COLUMN printing_at DATETIME NULL, ADD COLUMN paper_name VARCHAR(60) NULL",
+    ];
+    return [$m1, $m2];
 }

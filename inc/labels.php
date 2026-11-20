@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 function label_presets(): array { return [['40×25', 40, 25], ['50×30', 50, 30], ['60×40', 60, 40], ['70×50', 70, 50], ['100×150 (ارسال)', 100, 150], ['A6', 105, 148]]; }
 function label_papers(): array { return ['A4' => [210, 297], 'A5' => [148, 210], 'A6' => [105, 148]]; }
-function label_paper_name($w, $h): string { foreach (label_papers() as $n => [$pw, $ph]) if (abs($pw - $w) < 1 && abs($ph - $h) < 1) return $n; return fa_num(rtrim(rtrim((string)$w, '0'), '.')) . '×' . fa_num(rtrim(rtrim((string)$h, '0'), '.')) . ' م‌م'; }
+function label_paper_name($w, $h): string { foreach (label_papers() as $n => [$pw, $ph]) if (abs($pw - $w) < 1 && abs($ph - $h) < 1) return $n; $f = fn($x) => fa_num((string)(0 + round((float)$x, 1))); return $f($w) . '×' . $f($h) . ' م‌م'; }
+function label_paper_std($w, $h): string { foreach (label_papers() as $n => [$pw, $ph]) if (abs($pw - $w) < 1 && abs($ph - $h) < 1) return $n; return ''; }
 function label_kinds(): array { return ['item' => 'کالا / دانه', 'lot' => 'محموله (ورودِ انبار)', 'ship' => 'ارسالِ سفارش', 'shelf' => 'قیمتِ قفسه']; }
 function label_el_types(): array { return ['text' => 'متن', 'field' => 'فیلد', 'qr' => 'QR', 'barcode' => 'بارکد', 'logo' => 'لوگو', 'line' => 'خط', 'box' => 'کادر', 'cut' => 'خطِ برش']; }
 /** فیلدهای هر نوع */

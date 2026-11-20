@@ -29,16 +29,25 @@ function der_int(string $b): string { $b = ltrim($b, "\0"); if ($b === '' || ord
 /** کلیدِ COSE → PEM */
 function cose_to_pem(array $k): array {
     if (($k[1] ?? 0) == 2) { // EC2 P-256
+        if ((int)($k[3] ?? 0) !== -7 || (int)($k[-1] ?? 0) !== 1) throw new UserError('الگوریتمِ کلیدِ این دستگاه پشتیبانی نمی‌شود');
         $spki = der(0x30, der(0x30, der(0x06, hex2bin('2a8648ce3d0201')) . der(0x06, hex2bin('2a8648ce3d030107'))) . der(0x03, "\0\x04" . $k[-2] . $k[-3]));
         $alg = -7;
     } elseif (($k[1] ?? 0) == 3) { // RSA
+        if ((int)($k[3] ?? 0) !== -257) throw new UserError('الگوریتمِ کلیدِ این دستگاه پشتیبانی نمی‌شود');
         $spki = der(0x30, der(0x30, der(0x06, hex2bin('2a864886f70d010101')) . der(0x05, '')) . der(0x03, "\0" . der(0x30, der_int($k[-1]) . der_int($k[-2]))));
         $alg = -257;
     } else throw new UserError('نوعِ کلیدِ این دستگاه پشتیبانی نمی‌شود');
     return ["-----BEGIN PUBLIC KEY-----\n" . chunk_split(base64_encode($spki), 64, "\n") . "-----END PUBLIC KEY-----\n", $alg];
 }
-function pk_rp_id(): string { return (string)(parse_url(app_url(), PHP_URL_HOST) ?: 'localhost'); }
-function pk_origin_ok(string $origin): bool { $h = parse_url($origin, PHP_URL_HOST); return $h && strcasecmp($h, pk_rp_id()) === 0; }
+function pk_rp_id(): string { return strtolower((string)(parse_url(app_url(), PHP_URL_HOST) ?: 'localhost')); }
+/** مبدأهای پذیرفته: دقیقاً همین سایت با https (www و بی‌www هر دو؛ مرورگر مبدأ را عینِ نوارِ نشانی می‌گذارد) — از Weby */
+function pk_origins(): array {
+    $rp = pk_rp_id(); $hosts = [$rp, str_starts_with($rp, 'www.') ? substr($rp, 4) : 'www.' . $rp];
+    $o = array_map(fn($h) => 'https://' . $h, $hosts);
+    if ($rp === 'localhost' || $rp === '127.0.0.1') $o[] = 'http://' . $rp . ((string)parse_url(app_url(), PHP_URL_PORT) !== '' ? ':' . parse_url(app_url(), PHP_URL_PORT) : '');
+    return $o;
+}
+function pk_origin_ok(string $origin): bool { return in_array(rtrim($origin, '/'), pk_origins(), true); }
 
 /** کوکیِ دستگاه */
 function df_dev_current(): ?array {
@@ -119,8 +128,11 @@ function pk_login_verify(array $in): array {
     if (!hash_equals(hash('sha256', pk_rp_id(), true), $ad['rpIdHash']) || !($ad['flags'] & 0x04)) throw new UserError('تأییدِ اثرِ انگشت/چهره انجام نشد', 401);
     $ok = openssl_verify($adRaw . hash('sha256', $cdRaw, true), b64u_dec((string)($in['signature'] ?? '')), $p['pubkey'], OPENSSL_ALGO_SHA256);
     if ($ok !== 1) throw new UserError('امضای دستگاه نادرست است', 401);
-    if ($ad['count'] > 0 && $ad['count'] <= (int)$p['sign_count']) throw new UserError('شمارندهٔ دستگاه نامعتبر است (احتمالِ کپی)', 401);
-    upd('passkeys', ['sign_count' => $ad['count'], 'last_used' => now()], 'id=?', [$p['id']]);
+    // شمارندهٔ عقب‌رفته = کلیدِ کپی‌شده؛ آیفون و کلیدهای همگام‌شونده همیشه صفر می‌فرستند (آن نشانهٔ چیزی نیست)
+    $was = (int)$p['sign_count']; $nowc = (int)$ad['count'];
+    if ($was > 0 && $nowc > 0 && $nowc <= $was) throw new UserError('این کلید معتبر نیست؛ با پیامک وارد شوید و دستگاه را دوباره ثبت کنید', 401);
+    if (!(int)val("SELECT active FROM users WHERE id=?", [$p['user_id']])) throw new UserError('این حساب غیرفعال است', 401);
+    upd('passkeys', ['sign_count' => max($was, $nowc), 'last_used' => now()], 'id=?', [$p['id']]);
     upd('devices', ['last_seen' => now()], 'id=?', [$dev['id']]);
     login_as((int)$p['user_id']);
     return current_user() ?? [];

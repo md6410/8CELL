@@ -16,7 +16,7 @@ try {
         $ct = (string)($_SERVER['CONTENT_TYPE'] ?? '');
         if (str_contains($ct, 'application/json')) { $j = json_decode((string)file_get_contents('php://input'), true); $in = array_merge($in, is_array($j) ? $j : []); }
         else $in = array_merge($in, $_POST);
-        $noCsrf = str_starts_with($a, 'agent_') || str_starts_with($a, 'channel_') && in_array($a, ['channel_order', 'channel_catalog', 'channel_status'], true);
+        $noCsrf = in_array($a, ['channel_order', 'channel_catalog', 'channel_status'], true);
         if (!$noCsrf) csrf_check();
     }
     unset($in['a']);

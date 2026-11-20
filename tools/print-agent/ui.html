@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ایستگاه چاپ فروشگاه</title>
+<style>
+  :root{--ink:#0D1620;--muted:#6B7684;--line:#E3E7EB;--soft:#F5F7F9;--wine:#7A1F22;--ok:#1B9E5A;--err:#B3261E}
+  *{box-sizing:border-box}
+  body{margin:0;background:#EEF1F4;color:var(--ink);font-family:Tahoma,Segoe UI,sans-serif;font-size:14px;line-height:1.8}
+  .wrap{max-width:1000px;margin:0 auto;padding:18px}
+  h1{font-size:20px;margin:0 0 4px}
+  h2{font-size:16px;margin:0 0 12px}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:16px}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  label{font-size:12.5px;color:var(--muted);display:block;margin-bottom:3px}
+  input,select{font:inherit;font-size:13.5px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:#fff;width:100%}
+  input[dir=ltr]{font-family:monospace;font-size:12.5px}
+  button{font:inherit;font-size:13.5px;font-weight:600;cursor:pointer;border:0;border-radius:9px;padding:9px 18px;background:var(--wine);color:#fff}
+  button.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  button:disabled{opacity:.5;cursor:default}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;font-size:13px;vertical-align:middle}
+  th{font-size:12px;color:var(--muted);font-weight:600}
+  td input,td select{padding:6px 8px;font-size:12.5px}
+  .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-inline-end:6px}
+  .dot.on{background:var(--ok)} .dot.off{background:#C6CCD3}
+  .status{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:14px}
+  .pill{background:var(--soft);border-radius:8px;padding:5px 12px;font-size:12.5px}
+  .err{background:#FDECEA;color:var(--err);border-radius:9px;padding:10px 12px;font-size:13px;margin-top:10px}
+  .log{background:#0D1620;color:#B9C6D2;border-radius:10px;padding:12px;height:230px;overflow:auto;
+       font-family:monospace;font-size:12px;line-height:1.9;direction:ltr;text-align:left}
+  .log .ok{color:#7CFF9B} .log .error{color:#FF8F86} .log .warn{color:#FFD37C}
+  .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  @media(max-width:700px){.grid3{grid-template-columns:1fr}}
+  .pcard{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px}
+  .pcard.is-off{opacity:.55}
+  .phead{display:grid;grid-template-columns:auto 1.4fr 1.2fr 110px 190px auto auto;gap:10px;align-items:end}
+  @media(max-width:900px){.phead{grid-template-columns:1fr 1fr}}
+  .pcard table{margin-top:10px}
+  .badge-def{background:#E8F5EE;color:var(--ok);border-radius:6px;padding:1px 8px;font-size:11.5px}
+  tr.is-off { opacity: .45 }
+  tr.is-off input:not([type=checkbox]), tr.is-off select { background:#F2F4F6 }
+</style>
+</head>
+<body>
+<div class="wrap">
+<datalist id="presets"></datalist>
+
+  <h1>ایستگاه چاپ فروشگاه</h1>
+  <p class="hint" style="margin-top:0">این برنامه منتظر کارهای چاپ از سایت می‌ماند و آن‌ها را روی پرینترهای این کامپیوتر چاپ می‌کند.</p>
+
+  <div class="panel">
+    <div class="status">
+      <span><span class="dot off" id="dot"></span><b id="stateTxt">در حال بررسی…</b></span>
+      <span class="pill" id="stationName"></span>
+      <span class="pill">چاپ‌شده: <b id="done">۰</b></span>
+      <span class="pill">ناموفق: <b id="failed">۰</b></span>
+      <span class="pill">آخرین بررسی: <span id="lastPoll">—</span></span>
+    </div>
+    <div class="err" id="errBox" style="display:none"></div>
+  </div>
+
+  <div class="panel">
+    <h2>سایت‌هایی که به این ایستگاه وصل‌اند</h2>
+    <table>
+      <thead><tr><th>نام</th><th>نشانی API سایت</th><th>توکن ایستگاه</th><th>چاپگر پیش‌فرضِ این سایت</th><th>فعال</th><th>وضعیت</th><th></th></tr></thead>
+      <tbody id="sites"></tbody>
+    </table>
+    <div style="margin-top:8px"><button class="ghost" onclick="addSite()">+ سایت تازه</button></div>
+    <p class="hint">یک ایستگاه به چند سایت سرویس می‌دهد؛ هر سایت نشانی و توکن ایستگاهِ خودش را دارد و کارش با توکن همان سایت باز می‌شود. پرینترها و کاغذها مشترک‌اند و کارها یکی‌یکی چاپ می‌شوند. «چاپگر پیش‌فرضِ این سایت» فقط وقتی به کار می‌آید که کار چاپگر مشخصی نخواسته باشد. فایل ZIP هر سایت را هم که اجرا کنید، آن سایت به همین فهرست اضافه می‌شود.</p>
+    <div class="grid3" style="margin-top:10px">
+      <div><label>هر چند ثانیه بررسی شود</label><input id="poll" type="number" min="2" max="60"></div>
+    </div>
+    <div class="grid3" style="margin-top:10px">
+      <div><label>روش چاپ</label>
+        <select id="print_mode">
+          <option value="auto">خودکار (پیشنهادی)</option>
+          <option value="direct">چاپ مستقیم — بدون برنامهٔ جانبی</option>
+          <option value="pdf">از راه PDF — نیازمند SumatraPDF</option>
+        </select></div>
+      <div><label>موتور تبدیل به PDF</label>
+        <select id="engine">
+          <option value="auto">خودکار (پیشنهادی)</option>
+          <option value="chrome">مرورگر سیستم (Edge/Chrome) — بدون نصب</option>
+          <option value="playwright">playwright</option>
+          <option value="weasyprint">weasyprint</option>
+        </select></div>
+    </div>
+    <div class="hint"><b>چاپ مستقیم</b> صفحه را با Edge/Chrome خود ویندوز به عکس تبدیل
+      می‌کند و با اندازهٔ دقیق روی پرینتر می‌کشد — هیچ برنامهٔ جانبی لازم ندارد و
+      برای برچسب بهترین است. مسیر PDF فقط اگر SumatraPDF نصب باشد کار می‌کند.</div>
+    <div class="hint">توکن را از پنل مدیریت ← ایستگاه‌های چاپ بردارید. هر ایستگاه توکن مخصوص خودش را دارد.</div>
+    <div id="dirtyBar" style="display:none;margin-top:10px;padding:9px 12px;border-radius:8px;
+         background:#FFF4E5;border:1px solid #F0D9AE;font-size:13px">
+      تغییراتی دارید که هنوز ذخیره نشده‌اند. تا وقتی ذخیره نکنید، به‌روزرسانی خودکار
+      نوشته‌هایتان را پاک نمی‌کند.
+    </div>
+    <div class="row" style="margin-top:12px"><button onclick="saveConfig()">ذخیرهٔ تنظیمات</button></div>
+  </div>
+
+  <div class="panel">
+    <h2>پرینترها و کاغذهایشان</h2>
+    <p class="hint" style="margin-top:0">
+      برای هر پرینتر هر چند «کاغذ» (مجموعه تنظیم) که لازم دارید بسازید و ذخیره کنید؛
+      هر کاغذ اندازه، چرخش و درایور خودش را دارد. یکی از آن‌ها را <b>کاغذ پیش‌فرض</b> کنید.
+      اگر پرینتر هر لحظه فقط یک کاغذ دارد، حالت «هر پرینتر یک کاغذ» را نگه دارید:
+      همان کاغذ پیش‌فرض داخل پرینتر حساب می‌شود و با عوض‌کردن کاغذ، پیش‌فرض را هم عوض کنید.
+      اگر پرینتر چند کاغذ را هم‌زمان می‌گیرد (چند سینی)، «چند کاغذ هم‌زمان» را بزنید؛
+      آن‌وقت هر کار با اندازه‌اش کاغذ مناسب را خودش برمی‌دارد.
+    </p>
+    <div id="plist"></div>
+    <div class="row" style="margin-top:12px">
+      <button onclick="savePrinters()">ذخیرهٔ کاغذها</button>
+      <button class="ghost" onclick="load()">تازه‌سازی فهرست پرینترها</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>گزارش زنده</h2>
+    <div class="log" id="log"></div>
+  </div>
+
+</div>
+
+<script>
+let PRINTERS = [];
+
+/* وقتی true شود، تازه‌سازی خودکار دیگر فرم را بازنویسی نمی‌کند */
+let DIRTY = false;
+function touch() { DIRTY = true; const b=document.getElementById('dirtyBar'); if(b) b.style.display=''; }
+function clean() { DIRTY = false; const b=document.getElementById('dirtyBar'); if(b) b.style.display='none'; }
+const PRESETS = [
+  ['A4', 210, 297], ['A5', 148, 210], ['A6', 105, 148],
+  ['برچسب ۱۰×۱۵', 100, 150], ['برچسب ۱۰×۱۰', 100, 100], ['برچسب ۱۰×۷', 100, 70],
+  ['برچسب ۸×۵', 80, 50], ['برچسب ۶×۴', 60, 40],
+  ['حرارتی ۵×۳', 50, 30], ['حرارتی ۴×۳', 40, 30], ['حرارتی ۳×۲', 30, 20],
+];
+
+document.getElementById('presets').innerHTML = PRESETS.map(p => `<option value="${p[0]}">`).join('');
+let SITES = [];
+function siteStatus(x) {
+  if (!x.enabled) return '<span class="pill">خاموش</span>';
+  const t = x.online ? '<span class="dot on"></span>وصل' + (x.station ? ' — «' + escapeHtml(x.station) + '»' : '') : '<span class="dot off"></span>وصل نیست';
+  return t + '<br><small class="hint">' + fa(x.jobs_done || 0) + ' چاپ' + (x.jobs_failed ? '، ' + fa(x.jobs_failed) + ' ناموفق' : '') + (x.last_error ? ' · ' + escapeHtml(x.last_error).slice(0, 80) : '') + '</small>';
+}
+function drawSites() {
+  document.getElementById('sites').innerHTML = SITES.map((x, i) => `<tr>
+    <td><input value="${escapeHtml(x.name || '')}" placeholder="نام سایت" oninput="SITES[${i}].name=this.value;touch()"></td>
+    <td><input dir="ltr" value="${escapeHtml(x.api_url || '')}" placeholder="https://example.ir/print-api.php" oninput="SITES[${i}].api_url=this.value;touch()"></td>
+    <td><input dir="ltr" value="${escapeHtml(x.token || '')}" placeholder="از پنل همان سایت کپی کنید" oninput="SITES[${i}].token=this.value;touch()"></td>
+    <td><input value="${escapeHtml(x.printer || '')}" placeholder="پیش‌فرض" oninput="SITES[${i}].printer=this.value;touch()"></td>
+    <td><input type="checkbox" ${x.enabled !== false ? 'checked' : ''} onchange="SITES[${i}].enabled=this.checked;touch()"></td>
+    <td id="st-${x.id || ''}">${x.id ? siteStatus(x) : '<small class="hint">ذخیره نشده</small>'}</td>
+    <td><button class="ghost" onclick="SITES.splice(${i},1);touch();drawSites()">حذف</button></td></tr>`).join('') || '<tr><td colspan="7" class="hint">هنوز سایتی تعریف نشده است.</td></tr>';
+}
+function addSite() { SITES.push({name: '', api_url: '', token: '', printer: '', enabled: true}); touch(); drawSites(); }
+function fa(n) { return String(n).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[d]); }
+
+async function load() {
+  let s;
+  try { s = await (await fetch('/api/state')).json(); }
+  catch (e) { return; }
+
+  document.getElementById('dot').className = 'dot ' + (s.online ? 'on' : 'off');
+  document.getElementById('stateTxt').textContent =
+    s.busy ? 'در حال چاپ…' : (s.online ? 'متصل و آمادهٔ دریافت' : 'قطع');
+  document.getElementById('stationName').textContent =
+    s.config.station_name ? 'ایستگاه: ' + s.config.station_name : 'ایستگاه شناسایی نشده';
+  document.getElementById('done').textContent = fa(s.jobs_done);
+  document.getElementById('failed').textContent = fa(s.jobs_failed);
+  document.getElementById('lastPoll').textContent = s.last_poll || '—';
+
+  const eb = document.getElementById('errBox');
+  eb.style.display = s.last_error ? '' : 'none';
+  eb.textContent = s.last_error || '';
+
+  /* تا وقتی چیزی را دست‌کاری کرده‌اید و ذخیره نکرده‌اید، تازه‌سازی خودکار
+     فرم را دست نمی‌زند. وگرنه هر چند ثانیه نوشته‌هایتان پاک می‌شد. */
+  if (!DIRTY) {
+    SITES = (s.sites || []).map(x => Object.assign({}, x));
+    drawSites();
+    document.getElementById('poll').value   = s.config.poll_seconds;
+    document.getElementById('engine').value = s.config.engine;
+    if (s.config.print_mode) document.getElementById('print_mode').value = s.config.print_mode;
+    PRINTERS = s.printers;
+    drawPrinters();
+  }
+  (s.sites || []).forEach(x => { const c = document.getElementById('st-' + x.id); if (c) c.innerHTML = siteStatus(x); });
+  document.getElementById('dirtyBar').style.display = DIRTY ? '' : 'none';
+
+  document.getElementById('log').innerHTML = s.log.map(l =>
+    `<div class="${l.kind}">[${l.t}] ${escapeHtml(l.msg)}</div>`).join('');
+}
+
+function escapeHtml(t) {
+  return String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+function newId() { return 'p' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5); }
+
+function drawPrinters() {
+  const box = document.getElementById('plist');
+  if (!PRINTERS.length) {
+    box.innerHTML = '<div style="color:#6B7684">هیچ پرینتری پیدا نشد. مطمئن شوید پرینتر روشن و نصب است.</div>';
+    return;
+  }
+  box.innerHTML = PRINTERS.map((p, i) => {
+    const papers = p.papers || [];
+    return `
+    <div class="pcard ${p.enabled ? '' : 'is-off'}">
+      <div class="phead">
+        <div style="text-align:center"><label>استفاده شود</label>
+          <input type="checkbox" style="width:auto;transform:scale(1.3)"
+                 ${p.enabled ? 'checked' : ''} onchange="toggleUse(${i},this.checked)"
+                 title="اگر تیک نخورد، این پرینتر اصلاً استفاده نمی‌شود"></div>
+        <div><label>پرینتر</label>
+          <span class="dot ${p.connected ? 'on' : 'off'}"></span>
+          <span dir="ltr" style="font-size:12px">${escapeHtml(p.name)}</span></div>
+        <div><label>نام نمایشی</label>
+          <input value="${escapeHtml(p.label || '')}" oninput="updP(${i},'label',this.value)"></div>
+        <div><label>نوع</label>
+          <select onchange="updP(${i},'kind',this.value)">
+            <option value="paper"   ${p.kind !== 'thermal' ? 'selected' : ''}>کاغذی</option>
+            <option value="thermal" ${p.kind === 'thermal' ? 'selected' : ''}>حرارتی</option>
+          </select></div>
+        <div><label>کاغذها</label>
+          <select onchange="setMulti(${i},this.value==='1')">
+            <option value="0" ${!p.multi_paper ? 'selected' : ''}>هر پرینتر یک کاغذ</option>
+            <option value="1" ${p.multi_paper ? 'selected' : ''}>چند کاغذ هم‌زمان</option>
+          </select></div>
+        <div><label>پرینتر پیش‌فرض</label>
+          <input type="radio" name="def" style="width:auto" ${p.default ? 'checked' : ''}
+                 ${p.enabled ? '' : 'disabled'} onchange="setDefault(${i})"></div>
+      </div>
+      <table>
+        <thead><tr>
+          <th style="width:70px">کاغذ پیش‌فرض</th>
+          <th>نام کاغذ</th><th>عرض (م‌م)</th><th>ارتفاع (م‌م)</th><th>اغماض</th>
+          <th>چرخش</th><th>اندازه</th><th>درایور</th><th></th>
+        </tr></thead>
+        <tbody>${papers.map((pp, j) => paperRows(i, j, pp, p)).join('')}</tbody>
+      </table>
+      <div class="row" style="margin-top:8px">
+        <select style="width:auto" id="addp${i}">
+          <option value="">— کاغذ دلخواه —</option>
+          ${PRESETS.map(pr => `<option>${pr[0]}</option>`).join('')}
+        </select>
+        <button class="ghost" onclick="addPaper(${i})">+ افزودن کاغذ</button>
+        <span class="hint" style="margin:0">${p.multi_paper
+          ? 'همهٔ کاغذهای این فهرست هم‌زمان در دسترس‌اند.'
+          : 'فقط کاغذ پیش‌فرض داخل پرینتر حساب می‌شود.'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function paperRows(i, j, pp, p) {
+  const isDef = p.default_paper === pp.id;
+  return `
+    <tr>
+      <td style="text-align:center"><input type="radio" name="dp${i}" style="width:auto"
+            ${isDef ? 'checked' : ''} onchange="setDefaultPaper(${i},${j})"></td>
+      <td><input list="presets" value="${escapeHtml(pp.paper || '')}" style="min-width:120px"
+                 onchange="nameChanged(${i},${j},this.value)"
+                 placeholder="مثلاً برچسب ۱۰×۱۵">
+          ${isDef ? '<span class="badge-def">پیش‌فرض</span>' : ''}</td>
+      <td><input type="number" step="1" style="width:78px" value="${pp.paper_w || ''}" oninput="updPaper(${i},${j},'paper_w',this.value)"></td>
+      <td><input type="number" step="1" style="width:78px" value="${pp.paper_h || ''}" oninput="updPaper(${i},${j},'paper_h',this.value)"></td>
+      <td><input type="number" step="1" style="width:64px" value="${pp.tolerance ?? 3}" oninput="updPaper(${i},${j},'tolerance',this.value)"></td>
+      <td><select onchange="updPaper(${i},${j},'rotate',this.value)" title="اگر برچسب کج چاپ می‌شود این را عوض کنید">
+            ${[0,90,180,270].map(d => `<option value="${d}" ${(+pp.rotate||0)===d?'selected':''}>${d}°</option>`).join('')}
+          </select></td>
+      <td><select onchange="updPaper(${i},${j},'fit',this.value)">
+            <option value="exact" ${pp.fit!=='fit'?'selected':''}>دقیق</option>
+            <option value="fit"   ${pp.fit==='fit'?'selected':''}>جا شود</option>
+          </select></td>
+      <td><select onchange="setDriver(${i},${j},this.value)"
+                  title="برای پرینترهای حرارتی ZEC / TSC گزینهٔ TSPL دقیق‌ترین است — درایور ویندوز کاملاً دور زده می‌شود">
+            <option value="gdi"  ${pp.driver!=='tspl'?'selected':''}>درایور ویندوز</option>
+            <option value="tspl" ${pp.driver==='tspl'?'selected':''}>TSPL حرارتی</option>
+          </select></td>
+      <td style="white-space:nowrap">
+        <button class="ghost" onclick="test('${escapeHtml(p.name)}','${escapeHtml(pp.id)}')">تست</button>
+        <button class="ghost" ${(p.papers||[]).length < 2 ? 'disabled' : ''}
+                onclick="delPaper(${i},${j})" title="حذف این کاغذ">✕</button></td>
+    </tr>
+    ${pp.driver === 'tspl' ? `
+    <tr>
+      <td></td>
+      <td colspan="8" style="background:#F9FAFB">
+        <div class="row" style="gap:14px">
+          <span style="font-size:12px;color:#6B7684">تنظیمات TSPL:</span>
+          <span><label style="display:inline">dpi پرینتر</label>
+            <select style="width:auto" onchange="updPaper(${i},${j},'tspl_dpi',this.value)">
+              <option value="203" ${(+pp.tspl_dpi||203)===203?'selected':''}>203 (ZP400 و بیشترِ مدل‌ها)</option>
+              <option value="300" ${(+pp.tspl_dpi||203)===300?'selected':''}>300</option>
+            </select></span>
+          <span><label style="display:inline">فاصلهٔ برچسب‌ها (م‌م)</label>
+            <input type="number" step="0.5" style="width:70px" value="${pp.gap_mm ?? 3}"
+                   onchange="updPaper(${i},${j},'gap_mm',this.value)"
+                   title="فاصلهٔ خالی بین دو برچسب. برچسب پیوسته = ۰"></span>
+          <span><label style="display:inline">غلظت (۰ تا ۱۵)</label>
+            <input type="number" min="0" max="15" style="width:60px" value="${pp.density ?? 8}"
+                   onchange="updPaper(${i},${j},'density',this.value)"></span>
+          <span><label style="display:inline">سرعت</label>
+            <input type="number" min="1" max="12" style="width:60px" value="${pp.speed ?? 4}"
+                   onchange="updPaper(${i},${j},'speed',this.value)"></span>
+        </div>
+      </td>
+    </tr>` : ''}`;
+}
+
+function toggleUse(i, on) {
+  touch();
+  PRINTERS[i].enabled = !!on;
+  /* اگر پرینتر پیش‌فرض را خاموش کردیم، پیش‌فرض به اولین پرینتر فعال می‌رود */
+  if (!on && PRINTERS[i].default) {
+    PRINTERS[i].default = false;
+    const first = PRINTERS.find(p => p.enabled && p.connected);
+    if (first) first.default = true;
+  }
+  if (on && !PRINTERS.some(p => p.default)) PRINTERS[i].default = true;
+  drawPrinters();
+}
+
+function updP(i, k, v) { touch(); PRINTERS[i][k] = v; }
+function setMulti(i, on) { touch(); PRINTERS[i].multi_paper = !!on; drawPrinters(); }
+function setDefault(i) { touch(); PRINTERS.forEach((p, j) => p.default = (i === j)); }
+function setDefaultPaper(i, j) { touch(); PRINTERS[i].default_paper = PRINTERS[i].papers[j].id; drawPrinters(); }
+
+function updPaper(i, j, k, v) {
+  touch();
+  PRINTERS[i].papers[j][k] = (k === 'fit' || k === 'driver') ? v : (parseFloat(v) || 0);
+}
+function setDriver(i, j, v) {
+  touch();
+  const pp = PRINTERS[i].papers[j];
+  pp.driver = v;
+  if (v === 'tspl' && !pp.tspl_dpi) pp.tspl_dpi = 203;
+  drawPrinters();   // تا ردیف تنظیمات TSPL نمایان/پنهان شود
+}
+
+function nameChanged(i, j, name) {
+  touch();
+  const pp = PRINTERS[i].papers[j];
+  pp.paper = name;
+  const pr = PRESETS.find(x => x[0] === name);
+  if (pr) { pp.paper_w = pr[1]; pp.paper_h = pr[2]; }
+  drawPrinters();
+}
+
+function addPaper(i) {
+  touch();
+  const name = document.getElementById('addp' + i).value;
+  const pr = PRESETS.find(x => x[0] === name);
+  const base = PRINTERS[i].papers[0] || {};
+  PRINTERS[i].papers.push({
+    id: newId(), paper: name, paper_w: pr ? pr[1] : 0, paper_h: pr ? pr[2] : 0,
+    tolerance: 3, rotate: 0, fit: 'exact',
+    driver: base.driver || 'gdi', tspl_dpi: base.tspl_dpi || 203,
+    gap_mm: base.gap_mm ?? 3, density: base.density ?? 8, speed: base.speed ?? 4,
+  });
+  drawPrinters();
+}
+
+function delPaper(i, j) {
+  const p = PRINTERS[i];
+  if (p.papers.length < 2) return;
+  if (!confirm('این کاغذ از فهرست پرینتر حذف شود؟')) return;
+  touch();
+  const gone = p.papers.splice(j, 1)[0];
+  if (p.default_paper === gone.id) p.default_paper = p.papers[0].id;
+  drawPrinters();
+}
+
+async function saveConfig() {
+  clean();
+  await fetch('/api/config', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({
+      sites: SITES.map(x => ({id: x.id, name: x.name, api_url: x.api_url, token: x.token, printer: x.printer, enabled: x.enabled !== false})),
+      poll_seconds: document.getElementById('poll').value,
+      engine:  document.getElementById('engine').value,
+      print_mode: document.getElementById('print_mode').value,
+    })
+  });
+  load();
+}
+
+async function savePrinters() {
+  clean();
+  await fetch('/api/printers', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({printers: PRINTERS})
+  });
+  load();
+}
+
+async function test(name, paperId) {
+  if (DIRTY) { alert('اول «ذخیرهٔ کاغذها» را بزنید؛ آزمایش روی تنظیمات ذخیره‌شده انجام می‌شود.'); return; }
+  const r = await (await fetch('/api/test', {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({printer: name, paper_id: paperId})
+  })).json();
+  if (!r.ok) alert('چاپ آزمایشی ناموفق بود:\n\n' + r.error);
+  load();
+}
+
+load();
+['poll','engine','print_mode'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('input', touch);
+  if (el) el.addEventListener('change', touch);
+});
+
+setInterval(load, 3000);
+</script>
+</body>
+</html>

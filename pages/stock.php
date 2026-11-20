@@ -4,15 +4,15 @@ echo ui_tabs(['scan' => 'اسکنِ ورود/خروج', 'overview' => 'موجو�
 if ($tab === 'scan') { ?>
 <section class="card" id="whscan"><header><h2>اسکنِ انباردار</h2></header><p class="muted">چاپِ برچسب موجودی نمی‌سازد؛ اسکنِ ورود می‌سازد. کدِ ۳۳ نویسه = یک دانه؛ کدِ ۲۷ نویسه = محموله (با تعداد).</p>
 <div class="grid" style="grid-template-columns:140px 1fr 90px auto"><select class="mode"><?php if (can('stock.in')) echo '<option value="stock_in">ورود</option>'; if (can('stock.out')) echo '<option value="stock_out">خروج</option>'; ?><option value="scan_lookup">فقط شناسایی</option></select>
-<input class="code scan-in" placeholder="اسکن و Enter…" autocomplete="off"><input class="qty" value="۱"><button class="btn cam" type="button">📷</button></div>
-<div class="scanbox" style="display:none;margin-top:8px"></div><select class="scan-cam" style="display:none"></select><div class="scan-msg msg"></div><ol class="log"></ol></section>
-<script src="assets/vendor/zxing.min.js" defer></script><script src="assets/scan.js" defer></script>
+<input id="whScan" class="code scan-in" placeholder="اسکن و Enter…" autocomplete="off" data-scan-keep data-scan-confirm><input class="qty" value="۱"><button class="btn cam" type="button">📷</button></div>
+<div class="scan-msg msg" style="margin:6px 0;min-height:1.6em"></div><ol class="log"></ol></section>
+<script src="assets/vendor/zxing.min.js" defer></script><script src="assets/scan-feedback.js" defer></script><script src="assets/scan-box.js" defer></script>
 <script>document.addEventListener('DOMContentLoaded',function(){var C=window.Cell,r=document.getElementById('whscan'),inp=r.querySelector('.code'),msg=r.querySelector('.msg');
 function go(code){var m=r.querySelector('.mode').value;var p=m==='scan_lookup'?C.api('scan_lookup',{code:code},'GET'):C.api(m,{code:code,qty:C.toInt(r.querySelector('.qty').value)||1});
-return p.then(function(d){var t=m==='scan_lookup'?(d.label+(d.card?': '+d.card.name+' · موجودی '+C.fa(d.card.stock):'')+(d.status?' · '+d.status:'')):(m==='stock_in'?'ورود: ':'خروج: ')+code;msg.textContent='✔ '+t;msg.className='scan-msg ok';var li=document.createElement('li');li.textContent=t;r.querySelector('.log').prepend(li);window.Scanner&&window.Scanner.beep(true);return true;})
-.catch(function(e){msg.textContent='✖ '+e.message;msg.className='scan-msg err';window.Scanner&&window.Scanner.beep(false);return false;});}
-inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();var v=inp.value.trim();inp.value='';if(v)go(v);}});inp.focus();
-r.querySelector('.cam').onclick=function(){var b=r.querySelector('.scanbox');if(b.style.display==='none'){b.style.display='';Scanner.start({box:b,keep:true,camSelect:r.querySelector('.scan-cam'),msg:function(m){msg.textContent=m;},onCode:go});}else{Scanner.stop();b.style.display='none';}};});</script>
+return p.then(function(d){var t=m==='scan_lookup'?(d.label+(d.card?': '+d.card.name+' · موجودی '+C.fa(d.card.stock):'')+(d.status?' · '+d.status:'')):(m==='stock_in'?'ورود: ':'خروج: ')+code;msg.textContent='✔ '+t;msg.className='scan-msg ok';var li=document.createElement('li');li.textContent=t;r.querySelector('.log').prepend(li);var b=document.getElementById('scanBox');window.scanFeedback&&window.scanFeedback.ok(b&&!b.hidden?b:null,code);return true;})
+.catch(function(e){msg.textContent='✖ '+e.message;msg.className='scan-msg err';var b=document.getElementById('scanBox');window.scanFeedback&&window.scanFeedback.fail(b&&!b.hidden?b:null,e.message);return false;});}
+inp.addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();var v=inp.value.trim();inp.value='';if(v)go(v);}});inp.addEventListener('input',function(e){if(e.isTrusted)return;var v=inp.value.trim();inp.value='';if(v)go(v);});inp.focus();
+r.querySelector('.cam').onclick=function(){var b=document.getElementById('scanBox');if(b&&!b.hidden)window.stopScan();else window.startScan('whScan');};});</script>
 <?php } elseif ($tab === 'overview') {
     $wf = req_int('warehouse_id'); $q = trim((string)($_GET['q'] ?? ''));
     echo '<form class="filters"><input type="hidden" name="p" value="stock"><input type="hidden" name="tab" value="overview"><label>انبار<select name="warehouse_id"><option value="">همه</option>' . implode('', array_map(fn($w) => '<option value="' . $w['id'] . '"' . ($wf == $w['id'] ? ' selected' : '') . '>' . h($w['name']) . '</option>', warehouse_list())) . '</select></label><label>جست‌وجو<input name="q" value="' . h($q) . '"></label><button class="btn">نمایش</button></form>';

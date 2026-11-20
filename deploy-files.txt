@@ -9,7 +9,8 @@ assets/fonts/Vazirmatn.woff2
 assets/label.js
 assets/pos.js
 assets/print.css
-assets/scan.js
+assets/scan-box.js
+assets/scan-feedback.js
 assets/vendor/qrcode.js
 assets/vendor/zxing.min.js
 config.sample.php
@@ -108,3 +109,4 @@ pages/whops.php
 parts/.htaccess
 parts/sidebar.php
 v.php
+print-api.php
